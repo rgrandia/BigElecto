@@ -184,7 +184,6 @@ export default function SimulatorPage() {
   const convertPartiesForCalculation = (parties: Party[]) => {
     return parties.map(p => ({
       partyId: p.id
-partyId: p.id,
       partyName: p.name,
       color: p.color,
       votes: p.votes

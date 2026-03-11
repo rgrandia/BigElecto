@@ -3,9 +3,20 @@
 import { useTheme } from './ThemeProvider';
 import { Sun, Moon, Monitor } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useEffect, useState } from 'react';
 
 export default function ThemeToggle() {
   const { theme, setTheme, resolvedTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // No renderitzar res fins que estigui muntat (evita hydration mismatch)
+  if (!mounted) {
+    return <div className="w-32 h-10 bg-slate-200 dark:bg-slate-800 rounded-full" />;
+  }
 
   const options: { value: 'light' | 'dark' | 'system'; icon: React.ReactNode; label: string }[] = [
     { value: 'light', icon: <Sun className="w-4 h-4" />, label: 'Clar' },

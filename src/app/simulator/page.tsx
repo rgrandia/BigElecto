@@ -180,6 +180,27 @@ export default function SimulatorPage() {
     setCurrentUser(null);
   };
 
+  // Funció auxiliar per convertir Party al format esperat per calculateElection
+  const convertPartiesForCalculation = (parties: Party[]) => {
+    return parties.map(p => ({
+      partyId: p.id
+partyId: p.id,
+      partyName: p.name,
+      color: p.color,
+      votes: p.votes
+    }));
+  };
+
+  // Funció auxiliar per convertir Constituency al format esperat
+  const convertConstituenciesForCalculation = (constituencies: Constituency[]) => {
+    return constituencies.map(c => ({
+      id: c.id,
+      name: c.name,
+      seats: c.seats,
+      votes: c.votes
+    }));
+  };
+
   // --- Render Tabs ---
   const renderActiveTab = () => {
     switch(activeTab) {
@@ -431,8 +452,10 @@ export default function SimulatorPage() {
             <div className="flex flex-wrap gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
               <button
                 onClick={() => {
-                  // Calcular resultats
-                  const calcResults = calculateElection(parties, constituencies, method, threshold);
+                  // Calcular resultats amb conversió de tipus
+                  const partiesForCalc = convertPartiesForCalculation(parties);
+                  const constituenciesForCalc = convertConstituenciesForCalculation(constituencies);
+                  const calcResults = calculateElection(partiesForCalc, constituenciesForCalc, method, threshold);
                   setResults(calcResults);
                   setActiveTab('results');
                 }}
@@ -469,7 +492,9 @@ export default function SimulatorPage() {
                   // Guardar escenari
                   const scenarioName = prompt('Nom de l\'escenari:');
                   if (scenarioName) {
-                    const calcResults = calculateElection(parties, constituencies, method, threshold);
+                    const partiesForCalc = convertPartiesForCalculation(parties);
+                    const constituenciesForCalc = convertConstituenciesForCalculation(constituencies);
+                    const calcResults = calculateElection(partiesForCalc, constituenciesForCalc, method, threshold);
                     setScenarios(prev => [...prev, { name: scenarioName, results: calcResults }]);
                   }
                 }}
@@ -635,7 +660,9 @@ export default function SimulatorPage() {
                 const comparisons: Record<ElectoralMethod, ConstituencyResult[]> = {} as any;
                 
                 methods.forEach(m => {
-                  comparisons[m] = calculateElection(parties, constituencies, m, threshold);
+                  const partiesForCalc = convertPartiesForCalculation(parties);
+                  const constituenciesForCalc = convertConstituenciesForCalculation(constituencies);
+                  comparisons[m] = calculateElection(partiesForCalc, constituenciesForCalc, m, threshold);
                 });
                 
                 setComparisonResults(comparisons);

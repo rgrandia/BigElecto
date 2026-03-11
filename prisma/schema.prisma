@@ -1,0 +1,111 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?   // Per credentials provider
+  accounts      Account[]
+  sessions      Session[]
+  parties       Party[]
+  scenarios     Scenario[]
+  createdAt     DateTime  @default(now())
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Party {
+  id          String   @id @default(cuid())
+  name        String
+  shortName   String
+  color       String   // Hex color
+  logo        String?  // URL opcional
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  isDefault   Boolean  @default(false) // Partits predefinits del sistema
+  createdAt   DateTime @default(now())
+  
+  // Relacions
+  scenarioVotes ScenarioVote[]
+  
+  @@index([userId])
+}
+
+model Scenario {
+  id              String   @id @default(cuid())
+  name            String
+  description     String?
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Configuració electoral
+  method          String   // dhondt, saintelague, hare, droop, etc.
+  threshold       Float    // Percentatge mínim (0-100)
+  constituencies  Json     // Array de {name, seats, votes: [{partyId, votes}]}
+  
+  // Resultats calculats (cache)
+  results         Json?
+  
+  isTemplate      Boolean  @default(false) // Plantilla pública
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relacions
+  votes           ScenarioVote[]
+  
+  @@index([userId])
+}
+
+model ScenarioVote {
+  id            String   @id @default(cuid())
+  scenarioId    String
+  scenario      Scenario @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+  partyId       String
+  party         Party    @relation(fields: [partyId], references: [id], onDelete: Cascade)
+  constituency  String   // Nom de la circumscripció
+  votes         Int
+  
+  @@unique([scenarioId, partyId, constituency])
+}

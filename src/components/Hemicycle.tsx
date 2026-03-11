@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 
 interface Seat {
   id: string;
@@ -34,7 +34,7 @@ export default function Hemicycle({
   className = '',
   showNumbers = false,
   animated = true
-}: HemicyycleProps) {
+}: HemicycleProps) {
   const [hoveredSeat, setHoveredSeat] = useState<string | null>(null);
   const [selectedParty, setSelectedParty] = useState<string | null>(null);
 
@@ -53,34 +53,28 @@ export default function Hemicycle({
     return list;
   }, [seats]);
 
-  // Calcular posicions amb distribució òptima
+  // Calcular posicions
   const seatPositions: Seat[] = useMemo(() => {
     const positions: Seat[] = [];
     let seatIndex = 0;
     
-    // Configuració adaptable segons el nombre d'escons
     const baseRadius = Math.max(60, Math.min(120, totalSeats * 2));
     const seatRadius = Math.max(4, Math.min(12, 200 / Math.sqrt(totalSeats)));
     const gap = seatRadius * 0.3;
     
-    // Distribuir en arcs concèntrics des de dalt (180°) fins als costats (0° i 360°)
     for (let row = 0; row < rows && seatIndex < totalSeats; row++) {
       const currentRadius = baseRadius + row * (seatRadius * 2 + gap);
-      
-      // Arc disponible: 180 graus (π radians) - de 0 a π
       const arcLength = Math.PI * currentRadius;
       const maxSeatsInArc = Math.floor(arcLength / (seatRadius * 2 + gap));
       const remainingSeats = totalSeats - seatIndex;
       const seatsInRow = Math.min(maxSeatsInArc, remainingSeats);
       
-      // Angle de cada escó
       const angleStep = Math.PI / (seatsInRow - 1 || 1);
       
       for (let i = 0; i < seatsInRow && seatIndex < totalSeats; i++) {
-        // Angle de π a 0 (d'esquerra a dreta, de dalt cap avall)
         const angle = Math.PI - (i * angleStep);
         const x = currentRadius * Math.cos(angle);
-        const y = -currentRadius * Math.sin(angle); // Negatiu perquè 0,0 és a dalt
+        const y = -currentRadius * Math.sin(angle);
         
         if (individualSeats[seatIndex]) {
           positions.push({
@@ -101,12 +95,10 @@ export default function Hemicycle({
     return positions;
   }, [individualSeats, totalSeats, rows]);
 
-  // Dimensions del SVG
   const maxRadius = Math.max(...seatPositions.map(s => s.radius), 100) + 30;
   const viewBoxWidth = maxRadius * 2.5;
   const viewBoxHeight = maxRadius * 1.5;
   
-  // Calcular estadístiques per partit
   const partyStats = useMemo(() => {
     const stats: Record<string, { count: number; percentage: number }> = {};
     seats.forEach(s => {
@@ -120,41 +112,32 @@ export default function Hemicycle({
 
   return (
     <div className={`relative ${className}`}>
-      {/* SVG Principal */}
       <svg 
         viewBox={`-${viewBoxWidth/2} -${viewBoxHeight * 0.8} ${viewBoxWidth} ${viewBoxHeight}`}
         className="w-full h-auto"
         style={{ minHeight: '400px', maxHeight: '600px' }}
       >
         <defs>
-          {/* Gradients per als escons */}
           {seats.map(party => (
             <radialGradient key={party.partyId} id={`gradient-${party.partyId}`}>
               <stop offset="0%" stopColor={party.color} stopOpacity={1} />
               <stop offset="70%" stopColor={party.color} stopOpacity={0.8} />
               <stop offset="100%" stopColor={party.color} stopOpacity={0.6} />
             </radialGradient>
-            
-            <filter key={`shadow-${party.partyId}`} id={`shadow-${party.partyId}`}>
-              <feDropShadow dx="0" dy="2" stdDeviation="2" floodOpacity="0.3"/>
-            </filter>
           ))}
           
-          {/* Gradient de fons */}
           <radialGradient id="bg-gradient" cx="50%" cy="100%" r="80%">
             <stop offset="0%" stopColor="currentColor" stopOpacity="0.05" />
             <stop offset="100%" stopColor="currentColor" stopOpacity="0" />
           </radialGradient>
         </defs>
         
-        {/* Fons de l'hemicicle */}
         <path
           d={`M -${maxRadius * 0.8} 0 A ${maxRadius * 0.8} ${maxRadius * 0.8} 0 0 1 ${maxRadius * 0.8} 0`}
           fill="url(#bg-gradient)"
           className="text-slate-400"
         />
         
-        {/* Línies de referència concèntriques */}
         {[...Array(Math.min(rows, 8))].map((_, i) => {
           const r = 60 + i * 25;
           return (
@@ -171,7 +154,6 @@ export default function Hemicycle({
           );
         })}
 
-        {/* Escons */}
         <g>
           {seatPositions.map((seat, index) => {
             const isHovered = hoveredSeat === seat.id;
@@ -186,8 +168,7 @@ export default function Hemicycle({
                 initial={animated ? { scale: 0, opacity: 0 } : false}
                 animate={{ 
                   scale: isHovered ? 1.4 : 1,
-                  opacity: isDimmed ? 0.3 : 1,
-                  filter: isHovered ? 'brightness(1.2)' : 'brightness(1)'
+                  opacity: isDimmed ? 0.3 : 1
                 }}
                 transition={{ 
                   delay: animated ? index * 0.01 : 0,
@@ -203,7 +184,6 @@ export default function Hemicycle({
                 }}
                 style={{ cursor: 'pointer' }}
               >
-                {/* Cercle exterior (resplendor quan hover) */}
                 {isHovered && (
                   <circle
                     cx={seat.x}
@@ -214,7 +194,6 @@ export default function Hemicycle({
                   />
                 )}
                 
-                {/* Escó principal */}
                 <circle
                   cx={seat.x}
                   cy={seat.y}
@@ -222,10 +201,8 @@ export default function Hemicycle({
                   fill={`url(#gradient-${seat.partyId})`}
                   stroke={isSelected ? '#fff' : 'none'}
                   strokeWidth={isSelected ? 2 : 0}
-                  filter={`url(#shadow-${seat.partyId})`}
                 />
                 
-                {/* Número interior (opcional) */}
                 {showNumbers && baseRadius > 8 && (
                   <text
                     x={seat.x}
@@ -243,7 +220,6 @@ export default function Hemicycle({
           })}
         </g>
 
-        {/* Podi central */}
         <g transform={`translate(0, ${maxRadius * 0.1})`}>
           <rect
             x="-50"
@@ -264,9 +240,8 @@ export default function Hemicycle({
           </text>
         </g>
 
-        {/* Informació hover */}
         {hoveredSeat && (
-          <g transform={`translate(${seatPositions.find(s => s.id === hoveredSeat)?.x}, ${(seatPositions.find(s => s.id === hoveredSeat)?.y || 0) - 30})`}>
+          <g transform={`translate(${seatPositions.find(s => s.id === hoveredSeat)?.x || 0}, ${(seatPositions.find(s => s.id === hoveredSeat)?.y || 0) - 30})`}>
             <rect
               x="-60"
               y="-25"
@@ -288,7 +263,6 @@ export default function Hemicycle({
         )}
       </svg>
 
-      {/* Llegenda interactiva */}
       <div className="mt-8 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
         {seats
           .filter(s => s.count > 0)
@@ -329,7 +303,6 @@ export default function Hemicycle({
           })}
       </div>
 
-      {/* Controls */}
       <div className="mt-6 flex justify-center gap-4">
         <button
           onClick={() => setSelectedParty(null)}

@@ -481,14 +481,14 @@ export default function Hemicycle({
                 >
                   <div className="flex items-center gap-2">
                     {parties.map((p, i) => (
-                      <span key={p?.partyId} className="flex items-center gap-1">
-                        <span 
-                          className="w-3 h-3 rounded-full"
-                          style={{ backgroundColor: p?.color }}
-                        />
-                        <span className="font-medium text-sm">{p?.shortName}</span>
-                        {i < parties.length - 1 && <span className="text-slate-400">+</span>}
-                      </span>
+  <span key={p?.partyId} className="flex items-center gap-1">
+    <span 
+      className="w-3 h-3 rounded-full"
+      style={{ backgroundColor: p?.color }}
+    />
+    <span className="font-medium text-sm">{p?.partyName}</span>
+    {i < parties.length - 1 && <span className="text-slate-400">+</span>}
+  </span>
                     ))}
                   </div>
                   <div className="flex items-center gap-2">

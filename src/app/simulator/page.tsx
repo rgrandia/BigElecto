@@ -120,6 +120,21 @@ const PRESET_COLORS = [
   '#14b8a6', '#f43f5e', '#8b5cf6', '#a855f7', '#0ea5e9'
 ];
 
+
+const TAB_CONFIG = [
+  { id: 'setup', label: 'Configuració', icon: Settings },
+  { id: 'results', label: 'Resultats', icon: Calculator },
+  { id: 'whatif', label: 'Què passaria si', icon: Zap },
+  { id: 'heatmap', label: 'Mapa de calor', icon: MapPin },
+  { id: 'prediction', label: 'Predicció', icon: TrendingUp },
+  { id: 'stepbystep', label: 'Pas a pas', icon: Eye },
+  { id: 'compare', label: 'Comparador', icon: GitCompare },
+  { id: 'export', label: 'Exportar', icon: Download },
+] as const satisfies ReadonlyArray<{ id: string; label: string; icon: LucideIcon }>;
+
+type TabId = (typeof TAB_CONFIG)[number]['id'];
+
+
 export default function SimulatorPage() {
   // Estat principal
   const [parties, setParties] = useState<Party[]>([

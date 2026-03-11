@@ -75,14 +75,13 @@ interface TabConfig {
   icon: LucideIcon;
 }
 
-// --- Configuració tabs ---
+// --- Configuració tabs (ELIMINAT 'history') ---
 const TAB_CONFIG = [
   { id: 'setup', label: 'Configuració', icon: Settings },
   { id: 'results', label: 'Resultats', icon: Calculator },
   { id: 'whatif', label: 'Què passaria si', icon: Zap },
   { id: 'heatmap', label: 'Mapa de calor', icon: MapPin },
   { id: 'prediction', label: 'Predicció', icon: TrendingUp },
-  { id: 'history', label: 'Històric', icon: History },
   { id: 'stepbystep', label: 'Pas a pas', icon: Eye },
   { id: 'compare', label: 'Comparador', icon: GitCompare },
   { id: 'export', label: 'Exportar', icon: Download },
@@ -139,16 +138,16 @@ const PRESET_COLORS = [
 
 // --- Component principal ---
 export default function SimulatorPage() {
-  // Estat principal
+  // Estat principal - vots inicials a 0, s'han d'introduir per circumscripció
   const [parties, setParties] = useState<Party[]>([
-    { id: '1', name: 'Partit A', shortName: 'A', color: '#3b82f6', votes: 120000 },
-    { id: '2', name: 'Partit B', shortName: 'B', color: '#ef4444', votes: 95000 },
-    { id: '3', name: 'Partit C', shortName: 'C', color: '#10b981', votes: 70000 },
-    { id: '4', name: 'Partit D', shortName: 'D', color: '#f59e0b', votes: 45000 },
+    { id: '1', name: 'Partit A', shortName: 'A', color: '#3b82f6', votes: 0 },
+    { id: '2', name: 'Partit B', shortName: 'B', color: '#ef4444', votes: 0 },
+    { id: '3', name: 'Partit C', shortName: 'C', color: '#10b981', votes: 0 },
+    { id: '4', name: 'Partit D', shortName: 'D', color: '#f59e0b', votes: 0 },
   ]);
 
   const [constituencies, setConstituencies] = useState<Constituency[]>([
-    { id: '1', name: 'Circumscripció 1', seats: 10, votes: {} }
+    { id: '1', name: 'Circumscripció 1', seats: 10, votes: { '1': 0, '2': 0, '3': 0, '4': 0 } }
   ]);
 
   const [method, setMethod] = useState<ElectoralMethod>('dhondt');
@@ -185,11 +184,8 @@ export default function SimulatorPage() {
     return constituencies.map(constituency => {
       // Preparar els vots per aquesta circumscripció
       const partiesForCalc = parties.map(party => {
-        // Usar vots específics de la circumscripció si existeixen i són > 0, sinó vots globals
-        const constituencyVotes = constituency.votes[party.id];
-        const votes = constituencyVotes && constituencyVotes > 0 
-          ? constituencyVotes 
-          : party.votes;
+        // Usar vots específics de la circumscripció (mínim 0)
+        const votes = constituency.votes[party.id] || 0;
         
         return {
           partyId: party.id,
@@ -197,7 +193,18 @@ export default function SimulatorPage() {
           color: party.color,
           votes: votes
         };
-      });
+      }).filter(p => p.votes > 0); // Només partits amb vots
+
+      // Si no hi ha partits amb vots, retornar resultat buit
+      if (partiesForCalc.length === 0) {
+        return {
+          name: constituency.name,
+          totalSeats: constituency.seats,
+          totalVotes: 0,
+          parties: [],
+          distribution: []
+        };
+      }
 
       const result = calculateElection(
         partiesForCalc,
@@ -212,6 +219,57 @@ export default function SimulatorPage() {
         name: constituency.name
       };
     });
+  };
+
+  // Funció per afegir un nou partit amb vots inicialitzats a 0 a totes les circumscripcions
+  const addParty = () => {
+    const newId = (Math.max(...parties.map(p => parseInt(p.id)), 0) + 1).toString();
+    const newParty: Party = {
+      id: newId,
+      name: `Partit ${String.fromCharCode(65 + parties.length)}`,
+      shortName: String.fromCharCode(65 + parties.length),
+      color: PRESET_COLORS[parties.length % PRESET_COLORS.length],
+      votes: 0
+    };
+    
+    setParties([...parties, newParty]);
+    
+    // Inicialitzar vots a 0 per aquest partit a totes les circumscripcions
+    setConstituencies(prev => prev.map(c => ({
+      ...c,
+      votes: { ...c.votes, [newId]: 0 }
+    })));
+  };
+
+  // Funció per eliminar un partit
+  const removeParty = (index: number) => {
+    const partyId = parties[index].id;
+    setParties(parties.filter((_, i) => i !== index));
+    
+    // Eliminar vots d'aquest partit de totes les circumscripcions
+    setConstituencies(prev => prev.map(c => {
+      const { [partyId]: _, ...restVotes } = c.votes;
+      return { ...c, votes: restVotes };
+    }));
+  };
+
+  // Funció per afegir una nova circumscripció amb vots inicialitzats a 0 per tots els partits
+  const addConstituency = () => {
+    const newId = (Math.max(...constituencies.map(c => parseInt(c.id)), 0) + 1).toString();
+    const votes: Record<string, number> = {};
+    parties.forEach(p => {
+      votes[p.id] = 0;
+    });
+    
+    setConstituencies([
+      ...constituencies,
+      {
+        id: newId,
+        name: `Circumscripció ${constituencies.length + 1}`,
+        seats: 10,
+        votes
+      }
+    ]);
   };
 
   // --- Render Tabs ---
@@ -282,13 +340,20 @@ export default function SimulatorPage() {
                       setSelectedTemplate(templateKey);
                       if (templateKey && TEMPLATES[templateKey]) {
                         const template = TEMPLATES[templateKey];
+                        // Crear circumscripcions amb vots inicialitzats a 0 per tots els partits
                         setConstituencies(
-                          template.constituencies.map((c, idx) => ({
-                            id: `const-${idx}`,
-                            name: c.name,
-                            seats: c.seats,
-                            votes: {}
-                          }))
+                          template.constituencies.map((c, idx) => {
+                            const votes: Record<string, number> = {};
+                            parties.forEach(p => {
+                              votes[p.id] = 0;
+                            });
+                            return {
+                              id: `const-${idx}`,
+                              name: c.name,
+                              seats: c.seats,
+                              votes
+                            };
+                          })
                         );
                       }
                     }}
@@ -301,7 +366,11 @@ export default function SimulatorPage() {
                   <button
                     onClick={() => {
                       setSelectedTemplate('');
-                      setConstituencies([{ id: '1', name: 'Circumscripció 1', seats: 10, votes: {} }]);
+                      const votes: Record<string, number> = {};
+                      parties.forEach(p => {
+                        votes[p.id] = 0;
+                      });
+                      setConstituencies([{ id: '1', name: 'Circumscripció 1', seats: 10, votes }]);
                     }}
                     className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-700"
                   >
@@ -311,7 +380,7 @@ export default function SimulatorPage() {
               </div>
             </section>
 
-            {/* Secció: Partits */}
+            {/* Secció: Partits (SENSE input de vots) */}
             <section className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
               <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50 flex justify-between items-center">
                 <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
@@ -319,19 +388,7 @@ export default function SimulatorPage() {
                   Partits ({parties.length})
                 </h2>
                 <button
-                  onClick={() => {
-                    const newId = (Math.max(...parties.map(p => parseInt(p.id)), 0) + 1).toString();
-                    setParties([
-                      ...parties,
-                      {
-                        id: newId,
-                        name: `Partit ${String.fromCharCode(65 + parties.length)}`,
-                        shortName: String.fromCharCode(65 + parties.length),
-                        color: PRESET_COLORS[parties.length % PRESET_COLORS.length],
-                        votes: 0
-                      }
-                    ]);
-                  }}
+                  onClick={addParty}
                   className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors"
                 >
                   <Plus className="w-4 h-4 mr-1" />
@@ -353,7 +410,7 @@ export default function SimulatorPage() {
                         }}
                         className="w-10 h-10 rounded cursor-pointer border-0 p-0"
                       />
-                      <div className="flex-1 grid grid-cols-3 gap-3">
+                      <div className="flex-1 grid grid-cols-2 gap-3">
                         <input
                           type="text"
                           value={party.name}
@@ -376,20 +433,9 @@ export default function SimulatorPage() {
                           placeholder="Sigles"
                           className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                         />
-                        <input
-                          type="number"
-                          value={party.votes}
-                          onChange={(e) => {
-                            const updated = [...parties];
-                            updated[index].votes = parseInt(e.target.value) || 0;
-                            setParties(updated);
-                          }}
-                          placeholder="Vots globals (per defecte)"
-                          className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                        />
                       </div>
                       <button
-                        onClick={() => setParties(parties.filter((_, i) => i !== index))}
+                        onClick={() => removeParty(index)}
                         disabled={parties.length <= 1}
                         className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                       >
@@ -401,15 +447,15 @@ export default function SimulatorPage() {
               </div>
             </section>
 
-            {/* NOVA SECCIÓ: Vots per Circumscripció */}
+            {/* SECCIÓ: Vots per Circumscripció (OBLIGATORI) */}
             <section className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
               <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
                 <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
                   <MapPin className="w-5 h-5 mr-2 text-green-600" />
-                  Vots per Circumscripció
+                  Vots per Circumscripció <span className="ml-2 text-sm font-normal text-red-500">*</span>
                 </h2>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                  Introdueix els vots que rep cada partit a cada circumscripció. Si deixes un camp buit o a 0, s'usaran els vots globals del partit.
+                  Introdueix els vots que rep cada partit a cada circumscripció. És obligatori introduir almenys 1 vot per circumscripció.
                 </p>
               </div>
               
@@ -450,7 +496,7 @@ export default function SimulatorPage() {
                       </div>
                     </div>
                     
-                    {/* Vots per partit en aquesta circumscripció */}
+                    {/* Vots per partit en aquesta circumscripció - OBLIGATORI */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 pl-4 border-l-4 border-green-200 dark:border-green-800">
                       {parties.map((party) => (
                         <div key={party.id} className="flex items-center space-x-2">
@@ -471,7 +517,7 @@ export default function SimulatorPage() {
                               updated[constIndex].votes[party.id] = value;
                               setConstituencies(updated);
                             }}
-                            placeholder={party.votes.toString()}
+                            placeholder="0"
                             className="flex-1 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-sm focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                           />
                         </div>
@@ -484,18 +530,7 @@ export default function SimulatorPage() {
               {/* Botó per afegir circumscripció */}
               <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
                 <button
-                  onClick={() => {
-                    const newId = (Math.max(...constituencies.map(c => parseInt(c.id)), 0) + 1).toString();
-                    setConstituencies([
-                      ...constituencies,
-                      {
-                        id: newId,
-                        name: `Circumscripció ${constituencies.length + 1}`,
-                        seats: 10,
-                        votes: {}
-                      }
-                    ]);
-                  }}
+                  onClick={addConstituency}
                   className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 transition-colors"
                 >
                   <Plus className="w-4 h-4 mr-2" />
@@ -597,74 +632,106 @@ export default function SimulatorPage() {
             color: party.color,
             count
           };
-        });
+        }).filter(p => p.count > 0);
+
+        const totalSeats = seatsData.reduce((s, p) => s + p.count, 0);
 
         return (
           <div className="p-6">
             <div className="mb-6">
               <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Resultats Electorals</h2>
               <p className="text-gray-600 dark:text-gray-400">
-                Mètode: <span className="font-medium">{METHODS.find(m => m.value === method)?.label}</span> | 
-                Umbral: <span className="font-medium">{threshold}%</span> | 
-                Escons totals: <span className="font-medium">{seatsData.reduce((s, p) => s + p.count, 0)}</span>
+                Mètode: <span className="font-medium text-gray-900 dark:text-white">{METHODS.find(m => m.value === method)?.label}</span> | 
+                Umbral: <span className="font-medium text-gray-900 dark:text-white">{threshold}%</span> | 
+                Escons totals: <span className="font-medium text-gray-900 dark:text-white">{totalSeats}</span>
               </p>
             </div>
             
-            {results.length > 0 ? (
-              <Hemicycle
-                seats={seatsData}
-                totalSeats={seatsData.reduce((s, p) => s + p.count, 0)}
-              />
+            {totalSeats > 0 ? (
+              <>
+                <Hemicycle
+                  seats={seatsData}
+                  totalSeats={totalSeats}
+                />
+                
+                {/* Taula de resultats detallats */}
+                <div className="mt-8 overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <thead className="bg-gray-50 dark:bg-gray-800">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Partit</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Escons</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">% Escons</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+                      {seatsData
+                        .sort((a, b) => b.count - a.count)
+                        .map((party) => {
+                          const percentage = totalSeats > 0 ? ((party.count / totalSeats) * 100).toFixed(1) : '0.0';
+                          
+                          return (
+                            <tr key={party.partyId}>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="flex items-center">
+                                  <div 
+                                    className="w-4 h-4 rounded-full mr-3" 
+                                    style={{ backgroundColor: party.color }}
+                                  />
+                                  <span className="text-sm font-medium text-gray-900 dark:text-white">
+                                    {party.partyName}
+                                  </span>
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white font-bold">
+                                {party.count}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                                {percentage}%
+                              </td>
+                            </tr>
+                          );
+                        })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Resultats per circumscripció */}
+                <div className="mt-8">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Resultats per Circumscripció</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {results.map((constituency, idx) => (
+                      <div key={idx} className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 border border-gray-200 dark:border-gray-600">
+                        <h4 className="font-medium text-gray-900 dark:text-white mb-2">{constituency.name}</h4>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                          Escons: {constituency.totalSeats} | Vots totals: {constituency.totalVotes.toLocaleString()}
+                        </p>
+                        <div className="space-y-1">
+                          {constituency.parties
+                            .sort((a, b) => b.seats - a.seats)
+                            .map(party => (
+                              <div key={party.partyId} className="flex items-center justify-between text-sm">
+                                <div className="flex items-center">
+                                  <div 
+                                    className="w-3 h-3 rounded-full mr-2" 
+                                    style={{ backgroundColor: party.color }}
+                                  />
+                                  <span className="text-gray-700 dark:text-gray-300">{party.partyName}</span>
+                                </div>
+                                <span className="font-medium text-gray-900 dark:text-white">{party.seats} escons</span>
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
             ) : (
               <div className="flex flex-col items-center justify-center py-20 text-gray-500 dark:text-gray-400">
                 <Calculator className="w-16 h-16 mb-4 opacity-50" />
-                <p className="text-lg">Encara no hi ha resultats</p>
+                <p className="text-lg text-gray-900 dark:text-white">Encara no hi ha resultats</p>
                 <p className="text-sm">Ves a "Configuració" i prem "Calcular Resultats"</p>
-              </div>
-            )}
-            
-            {/* Taula de resultats detallats */}
-            {results.length > 0 && (
-              <div className="mt-8 overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                  <thead className="bg-gray-50 dark:bg-gray-800">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Partit</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Escons</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">% Escons</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
-                    {seatsData
-                      .sort((a, b) => b.count - a.count)
-                      .map((party) => {
-                        const totalSeats = seatsData.reduce((s, p) => s + p.count, 0);
-                        const percentage = totalSeats > 0 ? ((party.count / totalSeats) * 100).toFixed(1) : '0.0';
-                        
-                        return (
-                          <tr key={party.partyId}>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="flex items-center">
-                                <div 
-                                  className="w-4 h-4 rounded-full mr-3" 
-                                  style={{ backgroundColor: party.color }}
-                                />
-                                <span className="text-sm font-medium text-gray-900 dark:text-white">
-                                  {party.partyName}
-                                </span>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white font-bold">
-                              {party.count}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                              {percentage}%
-                            </td>
-                          </tr>
-                        );
-                      })}
-                  </tbody>
-                </table>
               </div>
             )}
           </div>
@@ -693,79 +760,133 @@ export default function SimulatorPage() {
       case 'prediction':
         return <PredictionPanel parties={parties} constituencies={constituencies} method={method} threshold={threshold} />;
 
-      case 'history':
-        return <ElectionHistory currentResults={results} />;
-
       case 'stepbystep':
         return <StepByStep result={results[0] ?? { name: '', totalSeats: 0, totalVotes: 0, parties: [], distribution: [] }} />;
 
       case 'compare':
         return (
           <div className="p-6">
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Comparador de Mètodes</h2>
-            <p className="text-gray-600 dark:text-gray-400 mb-4">
-              Compara els resultats amb diferents mètodes electorals aplicats als mateixos vots.
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Comparador de Mètodes Electorals</h2>
+            <p className="text-gray-600 dark:text-gray-400 mb-6">
+              Compara com canviarien els resultats amb diferents mètodes electorals aplicats als mateixos vots.
             </p>
-            <button
-              onClick={() => {
-                const methods: ElectoralMethod[] = ['dhondt', 'saintelague', 'hare', 'droop'];
-                const comparisons: Record<ElectoralMethod, ConstituencyResult[]> = {} as any;
-                
-                methods.forEach(m => {
-                  // Calcular per totes les circumscripcions amb cada mètode
-                  comparisons[m] = constituencies.map(constituency => {
-                    const partiesForCalc = parties.map(party => {
-                      const constituencyVotes = constituency.votes[party.id];
-                      const votes = constituencyVotes && constituencyVotes > 0 
-                        ? constituencyVotes 
-                        : party.votes;
-                      
-                      return {
+            
+            {!showComparison ? (
+              <button
+                onClick={() => {
+                  const methods: ElectoralMethod[] = ['dhondt', 'saintelague', 'hare', 'droop', 'imperiali'];
+                  const comparisons: Record<ElectoralMethod, { results: ConstituencyResult[]; totalSeats: number; partyTotals: Record<string, number> }> = {} as any;
+                  
+                  methods.forEach(m => {
+                    // Calcular per totes les circumscripcions amb cada mètode
+                    const methodResults = constituencies.map(constituency => {
+                      const partiesForCalc = parties.map(party => ({
                         partyId: party.id,
                         partyName: party.name,
                         color: party.color,
-                        votes: votes
+                        votes: constituency.votes[party.id] || 0
+                      })).filter(p => p.votes > 0);
+
+                      if (partiesForCalc.length === 0) {
+                        return {
+                          name: constituency.name,
+                          totalSeats: constituency.seats,
+                          totalVotes: 0,
+                          parties: [],
+                          distribution: []
+                        };
+                      }
+
+                      const result = calculateElection(
+                        partiesForCalc,
+                        constituency.seats,
+                        m,
+                        threshold
+                      );
+                      
+                      return {
+                        ...result,
+                        name: constituency.name
                       };
                     });
 
-                    const result = calculateElection(
-                      partiesForCalc,
-                      constituency.seats,
-                      m,
-                      threshold
-                    );
-                    return {
-                      ...result,
-                      name: constituency.name
+                    // Calcular totals per partit
+                    const partyTotals: Record<string, number> = {};
+                    methodResults.forEach(constituency => {
+                      constituency.parties.forEach(party => {
+                        partyTotals[party.partyId] = (partyTotals[party.partyId] || 0) + party.seats;
+                      });
+                    });
+
+                    comparisons[m] = {
+                      results: methodResults,
+                      totalSeats: methodResults.reduce((sum, c) => sum + c.totalSeats, 0),
+                      partyTotals
                     };
                   });
-                });
-                
-                setComparisonResults(comparisons);
-                setShowComparison(true);
-              }}
-              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-            >
-              <GitCompare className="w-4 h-4 mr-2" />
-              Comparar Mètodes
-            </button>
-            
-            {showComparison && Object.keys(comparisonResults).length > 0 && (
-              <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
-                {Object.entries(comparisonResults).map(([methodKey, methodResults]) => {
-                  const methodLabel = METHODS.find(m => m.value === methodKey)?.label || methodKey;
-                  const totalSeats = methodResults.reduce((sum, constit) => 
-                    sum + constit.parties.reduce((s, p) => s + p.seats, 0), 0
-                  );
                   
-                  return (
-                    <div key={methodKey} className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
-                      <h3 className="font-bold text-lg mb-2 text-gray-900 dark:text-white">{methodLabel}</h3>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">{METHODS.find(m => m.value === methodKey)?.description}</p>
-                      <div className="text-2xl font-bold text-blue-600">{totalSeats} escons</div>
-                    </div>
-                  );
-                })}
+                  setComparisonResults(comparisons);
+                  setShowComparison(true);
+                }}
+                className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+              >
+                <GitCompare className="w-5 h-5 mr-2" />
+                Comparar Mètodes
+              </button>
+            ) : (
+              <div className="space-y-6">
+                <button
+                  onClick={() => setShowComparison(false)}
+                  className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 text-sm font-medium"
+                >
+                  ← Tornar a comparar
+                </button>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {Object.entries(comparisonResults).map(([methodKey, data]) => {
+                    const methodLabel = METHODS.find(m => m.value === methodKey)?.label || methodKey;
+                    const methodDesc = METHODS.find(m => m.value === methodKey)?.description || '';
+                    
+                    return (
+                      <div key={methodKey} className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 shadow-sm">
+                        <div className="flex items-center justify-between mb-4">
+                          <h3 className="text-xl font-bold text-gray-900 dark:text-white">{methodLabel}</h3>
+                          <span className="px-3 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded-full text-sm font-medium">
+                            {data.totalSeats} escons
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">{methodDesc}</p>
+                        
+                        {/* Distribució per partit */}
+                        <div className="space-y-2">
+                          {Object.entries(data.partyTotals)
+                            .sort(([,a], [,b]) => b - a)
+                            .map(([partyId, seats]) => {
+                              const party = parties.find(p => p.id === partyId);
+                              if (!party || seats === 0) return null;
+                              const percentage = data.totalSeats > 0 ? ((seats / data.totalSeats) * 100).toFixed(1) : '0.0';
+                              
+                              return (
+                                <div key={partyId} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700/50 rounded">
+                                  <div className="flex items-center">
+                                    <div 
+                                      className="w-3 h-3 rounded-full mr-2" 
+                                      style={{ backgroundColor: party.color }}
+                                    />
+                                    <span className="text-sm font-medium text-gray-900 dark:text-white">{party.name}</span>
+                                  </div>
+                                  <div className="text-right">
+                                    <span className="text-sm font-bold text-gray-900 dark:text-white">{seats}</span>
+                                    <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">({percentage}%)</span>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </div>
@@ -781,8 +902,8 @@ export default function SimulatorPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Header amb tabs */}
-      <header className="sticky top-0 z-50 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm">
+      {/* Header amb tabs - FIXAT I MILLORAT */}
+      <header className="fixed top-0 left-0 right-0 z-50 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             {/* Logo o títol */}
@@ -792,33 +913,35 @@ export default function SimulatorPage() {
               </h1>
             </div>
 
-            {/* Tabs de navegació */}
-            <nav className="flex space-x-1 overflow-x-auto">
-              {TAB_CONFIG.map(tab => {
-                const Icon = tab.icon;
-                const isActive = activeTab === tab.id;
-                
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`
-                      inline-flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 whitespace-nowrap
-                      ${isActive 
-                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200' 
-                        : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white'
-                      }
-                    `}
-                  >
-                    <Icon className="w-4 h-4 mr-2" />
-                    {tab.label}
-                  </button>
-                );
-              })}
+            {/* Tabs de navegació - SCROLLABLE */}
+            <nav className="flex-1 mx-4 overflow-x-auto scrollbar-hide">
+              <div className="flex space-x-1 min-w-max">
+                {TAB_CONFIG.map(tab => {
+                  const Icon = tab.icon;
+                  const isActive = activeTab === tab.id;
+                  
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveTab(tab.id)}
+                      className={`
+                        inline-flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 whitespace-nowrap
+                        ${isActive 
+                          ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200' 
+                          : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white'
+                        }
+                      `}
+                    >
+                      <Icon className="w-4 h-4 mr-2" />
+                      {tab.label}
+                    </button>
+                  );
+                })}
+              </div>
             </nav>
 
             {/* Botons d'acció (Theme, Login) */}
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-3 flex-shrink-0">
               <ThemeToggle />
               {currentUser ? (
                 <button 
@@ -842,9 +965,12 @@ export default function SimulatorPage() {
         </div>
       </header>
 
+      {/* Espaiador per compensar el header fixe */}
+      <div className="h-16"></div>
+
       {/* Contingut principal */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 min-h-[600px]">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 min-h-[calc(100vh-8rem)]">
           {renderActiveTab()}
         </div>
       </main>

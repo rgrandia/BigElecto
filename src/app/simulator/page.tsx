@@ -180,27 +180,32 @@ export default function SimulatorPage() {
     setCurrentUser(null);
   };
 
-  // Funció auxiliar per convertir Party al format esperat per calculateElection
-  const convertPartiesForCalculation = (parties: Party[]) => {
-    return parties.map(p => ({
-      partyId: p.id,
-      partyName: p.name,
-      color: p.color,
-      votes: p.votes
-    }));
-  };
-
-  // Funció per calcular totes les circumscripcions
+  // Funció per calcular totes les circumscripcions AMB vots específics
   const calculateAllConstituencies = (): ConstituencyResult[] => {
-    const partiesForCalc = convertPartiesForCalculation(parties);
-    
     return constituencies.map(constituency => {
+      // Preparar els vots per aquesta circumscripció
+      const partiesForCalc = parties.map(party => {
+        // Usar vots específics de la circumscripció si existeixen i són > 0, sinó vots globals
+        const constituencyVotes = constituency.votes[party.id];
+        const votes = constituencyVotes && constituencyVotes > 0 
+          ? constituencyVotes 
+          : party.votes;
+        
+        return {
+          partyId: party.id,
+          partyName: party.name,
+          color: party.color,
+          votes: votes
+        };
+      });
+
       const result = calculateElection(
         partiesForCalc,
         constituency.seats,
         method,
         threshold
       );
+      
       // Afegir el nom de la circumscripció al resultat
       return {
         ...result,
@@ -306,144 +311,137 @@ export default function SimulatorPage() {
               </div>
             </section>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {/* Secció: Partits */}
-              <section className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-                <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50 flex justify-between items-center">
-                  <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
-                    <Users className="w-5 h-5 mr-2 text-blue-600" />
-                    Partits ({parties.length})
-                  </h2>
-                  <button
-                    onClick={() => {
-                      const newId = (Math.max(...parties.map(p => parseInt(p.id)), 0) + 1).toString();
-                      setParties([
-                        ...parties,
-                        {
-                          id: newId,
-                          name: `Partit ${String.fromCharCode(65 + parties.length)}`,
-                          shortName: String.fromCharCode(65 + parties.length),
-                          color: PRESET_COLORS[parties.length % PRESET_COLORS.length],
-                          votes: 0
-                        }
-                      ]);
-                    }}
-                    className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors"
-                  >
-                    <Plus className="w-4 h-4 mr-1" />
-                    Afegir
-                  </button>
-                </div>
-                
-                <div className="divide-y divide-gray-200 dark:divide-gray-700 max-h-96 overflow-y-auto">
-                  {parties.map((party, index) => (
-                    <div key={party.id} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                      <div className="flex items-center space-x-3">
+            {/* Secció: Partits */}
+            <section className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+              <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50 flex justify-between items-center">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
+                  <Users className="w-5 h-5 mr-2 text-blue-600" />
+                  Partits ({parties.length})
+                </h2>
+                <button
+                  onClick={() => {
+                    const newId = (Math.max(...parties.map(p => parseInt(p.id)), 0) + 1).toString();
+                    setParties([
+                      ...parties,
+                      {
+                        id: newId,
+                        name: `Partit ${String.fromCharCode(65 + parties.length)}`,
+                        shortName: String.fromCharCode(65 + parties.length),
+                        color: PRESET_COLORS[parties.length % PRESET_COLORS.length],
+                        votes: 0
+                      }
+                    ]);
+                  }}
+                  className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors"
+                >
+                  <Plus className="w-4 h-4 mr-1" />
+                  Afegir
+                </button>
+              </div>
+              
+              <div className="divide-y divide-gray-200 dark:divide-gray-700">
+                {parties.map((party, index) => (
+                  <div key={party.id} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                    <div className="flex items-center space-x-3">
+                      <input
+                        type="color"
+                        value={party.color}
+                        onChange={(e) => {
+                          const updated = [...parties];
+                          updated[index].color = e.target.value;
+                          setParties(updated);
+                        }}
+                        className="w-10 h-10 rounded cursor-pointer border-0 p-0"
+                      />
+                      <div className="flex-1 grid grid-cols-3 gap-3">
                         <input
-                          type="color"
-                          value={party.color}
+                          type="text"
+                          value={party.name}
                           onChange={(e) => {
                             const updated = [...parties];
-                            updated[index].color = e.target.value;
+                            updated[index].name = e.target.value;
                             setParties(updated);
                           }}
-                          className="w-10 h-10 rounded cursor-pointer border-0 p-0"
+                          placeholder="Nom del partit"
+                          className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                         />
-                        <div className="flex-1 grid grid-cols-2 gap-3">
-                          <input
-                            type="text"
-                            value={party.name}
-                            onChange={(e) => {
-                              const updated = [...parties];
-                              updated[index].name = e.target.value;
-                              setParties(updated);
-                            }}
-                            placeholder="Nom del partit"
-                            className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                          />
-                          <input
-                            type="text"
-                            value={party.shortName}
-                            onChange={(e) => {
-                              const updated = [...parties];
-                              updated[index].shortName = e.target.value;
-                              setParties(updated);
-                            }}
-                            placeholder="Sigles"
-                            className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                          />
-                        </div>
-                        <button
-                          onClick={() => setParties(parties.filter((_, i) => i !== index))}
-                          disabled={parties.length <= 1}
-                          className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        <input
+                          type="text"
+                          value={party.shortName}
+                          onChange={(e) => {
+                            const updated = [...parties];
+                            updated[index].shortName = e.target.value;
+                            setParties(updated);
+                          }}
+                          placeholder="Sigles"
+                          className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                        />
+                        <input
+                          type="number"
+                          value={party.votes}
+                          onChange={(e) => {
+                            const updated = [...parties];
+                            updated[index].votes = parseInt(e.target.value) || 0;
+                            setParties(updated);
+                          }}
+                          placeholder="Vots globals (per defecte)"
+                          className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                        />
                       </div>
+                      <button
+                        onClick={() => setParties(parties.filter((_, i) => i !== index))}
+                        disabled={parties.length <= 1}
+                        className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
-                  ))}
-                </div>
-              </section>
+                  </div>
+                ))}
+              </div>
+            </section>
 
-              {/* Secció: Circumscripcions */}
-              <section className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-                <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50 flex justify-between items-center">
-                  <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
-                    <MapPin className="w-5 h-5 mr-2 text-green-600" />
-                    Circumscripcions ({constituencies.length})
-                  </h2>
-                  <button
-                    onClick={() => {
-                      const newId = (Math.max(...constituencies.map(c => parseInt(c.id)), 0) + 1).toString();
-                      setConstituencies([
-                        ...constituencies,
-                        {
-                          id: newId,
-                          name: `Circumscripció ${constituencies.length + 1}`,
-                          seats: 10,
-                          votes: {}
-                        }
-                      ]);
-                    }}
-                    className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 transition-colors"
-                  >
-                    <Plus className="w-4 h-4 mr-1" />
-                    Afegir
-                  </button>
-                </div>
-                
-                <div className="divide-y divide-gray-200 dark:divide-gray-700 max-h-96 overflow-y-auto">
-                  {constituencies.map((constituency, index) => (
-                    <div key={constituency.id} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                      <div className="flex items-center space-x-3">
-                        <div className="flex-1 grid grid-cols-2 gap-3">
-                          <input
-                            type="text"
-                            value={constituency.name}
-                            onChange={(e) => {
-                              const updated = [...constituencies];
-                              updated[index].name = e.target.value;
-                              setConstituencies(updated);
-                            }}
-                            placeholder="Nom de la circumscripció"
-                            className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                          />
-                          <input
-                            type="number"
-                            min="1"
-                            value={constituency.seats}
-                            onChange={(e) => {
-                              const updated = [...constituencies];
-                              updated[index].seats = parseInt(e.target.value) || 1;
-                              setConstituencies(updated);
-                            }}
-                            placeholder="Escons"
-                            className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                          />
-                        </div>
+            {/* NOVA SECCIÓ: Vots per Circumscripció */}
+            <section className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+              <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
+                  <MapPin className="w-5 h-5 mr-2 text-green-600" />
+                  Vots per Circumscripció
+                </h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                  Introdueix els vots que rep cada partit a cada circumscripció. Si deixes un camp buit o a 0, s'usaran els vots globals del partit.
+                </p>
+              </div>
+              
+              <div className="divide-y divide-gray-200 dark:divide-gray-700">
+                {constituencies.map((constituency, constIndex) => (
+                  <div key={constituency.id} className="p-6 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center space-x-3 flex-1">
+                        <input
+                          type="text"
+                          value={constituency.name}
+                          onChange={(e) => {
+                            const updated = [...constituencies];
+                            updated[constIndex].name = e.target.value;
+                            setConstituencies(updated);
+                          }}
+                          className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                        />
+                        <input
+                          type="number"
+                          min="1"
+                          value={constituency.seats}
+                          onChange={(e) => {
+                            const updated = [...constituencies];
+                            updated[constIndex].seats = parseInt(e.target.value) || 1;
+                            setConstituencies(updated);
+                          }}
+                          placeholder="Escons"
+                          className="w-24 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                        />
                         <button
-                          onClick={() => setConstituencies(constituencies.filter((_, i) => i !== index))}
+                          onClick={() => setConstituencies(constituencies.filter((_, i) => i !== constIndex))}
                           disabled={constituencies.length <= 1}
                           className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                         >
@@ -451,10 +449,60 @@ export default function SimulatorPage() {
                         </button>
                       </div>
                     </div>
-                  ))}
-                </div>
-              </section>
-            </div>
+                    
+                    {/* Vots per partit en aquesta circumscripció */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 pl-4 border-l-4 border-green-200 dark:border-green-800">
+                      {parties.map((party) => (
+                        <div key={party.id} className="flex items-center space-x-2">
+                          <div 
+                            className="w-3 h-3 rounded-full flex-shrink-0" 
+                            style={{ backgroundColor: party.color }}
+                          />
+                          <span className="text-sm text-gray-700 dark:text-gray-300 truncate w-20">
+                            {party.shortName}
+                          </span>
+                          <input
+                            type="number"
+                            min="0"
+                            value={constituency.votes[party.id] || ''}
+                            onChange={(e) => {
+                              const updated = [...constituencies];
+                              const value = e.target.value === '' ? 0 : parseInt(e.target.value);
+                              updated[constIndex].votes[party.id] = value;
+                              setConstituencies(updated);
+                            }}
+                            placeholder={party.votes.toString()}
+                            className="flex-1 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-sm focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              {/* Botó per afegir circumscripció */}
+              <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
+                <button
+                  onClick={() => {
+                    const newId = (Math.max(...constituencies.map(c => parseInt(c.id)), 0) + 1).toString();
+                    setConstituencies([
+                      ...constituencies,
+                      {
+                        id: newId,
+                        name: `Circumscripció ${constituencies.length + 1}`,
+                        seats: 10,
+                        votes: {}
+                      }
+                    ]);
+                  }}
+                  className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 transition-colors"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Afegir Circumscripció
+                </button>
+              </div>
+            </section>
 
             {/* Botons d'acció */}
             <div className="flex flex-wrap gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
@@ -662,11 +710,24 @@ export default function SimulatorPage() {
               onClick={() => {
                 const methods: ElectoralMethod[] = ['dhondt', 'saintelague', 'hare', 'droop'];
                 const comparisons: Record<ElectoralMethod, ConstituencyResult[]> = {} as any;
-                const partiesForCalc = convertPartiesForCalculation(parties);
                 
                 methods.forEach(m => {
                   // Calcular per totes les circumscripcions amb cada mètode
                   comparisons[m] = constituencies.map(constituency => {
+                    const partiesForCalc = parties.map(party => {
+                      const constituencyVotes = constituency.votes[party.id];
+                      const votes = constituencyVotes && constituencyVotes > 0 
+                        ? constituencyVotes 
+                        : party.votes;
+                      
+                      return {
+                        partyId: party.id,
+                        partyName: party.name,
+                        color: party.color,
+                        votes: votes
+                      };
+                    });
+
                     const result = calculateElection(
                       partiesForCalc,
                       constituency.seats,

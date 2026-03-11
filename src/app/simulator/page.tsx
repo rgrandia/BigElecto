@@ -7,7 +7,6 @@ import {
   Save, 
   Download, 
   Share2, 
-  History,
   Settings,
   Plus,
   Trash2,
@@ -315,7 +314,10 @@ export default function SimulatorPage() {
             <Link href="/" className="flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors">
               <span className="text-2xl">←</span>
             </Link>
-            <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Simulador</h1>
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Simulador</h1>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Anàlisi electoral interactiva avançada</p>
+            </div>
           </div>
           
           <div className="flex items-center gap-3">

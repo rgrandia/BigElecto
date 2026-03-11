@@ -184,7 +184,328 @@ export default function SimulatorPage() {
   const renderActiveTab = () => {
     switch(activeTab) {
       case 'setup':
-        return <div className="p-6 text-gray-700 dark:text-gray-200">⚙️ Configuració de partits i circumscripcions</div>;
+        return (
+          <div className="p-6 space-y-8">
+            {/* Secció: Configuració General */}
+            <section className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-6 border border-gray-200 dark:border-gray-600">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+                <Settings className="w-5 h-5 mr-2 text-blue-600" />
+                Configuració General
+              </h2>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Selector de mètode */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Mètode Electoral
+                  </label>
+                  <select
+                    value={method}
+                    onChange={(e) => setMethod(e.target.value as ElectoralMethod)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                  >
+                    {METHODS.map((m) => (
+                      <option key={m.value} value={m.value}>
+                        {m.label}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    {METHODS.find(m => m.value === method)?.description}
+                  </p>
+                </div>
+
+                {/* Umbral electoral */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Umbral Electoral (%)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.1"
+                    value={threshold}
+                    onChange={(e) => setThreshold(parseFloat(e.target.value) || 0)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                  />
+                  <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    Percentatge mínim per obtenir representació
+                  </p>
+                </div>
+              </div>
+
+              {/* Templates */}
+              <div className="mt-6">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Carregar Template
+                </label>
+                <div className="flex space-x-3">
+                  <select
+                    value={selectedTemplate}
+                    onChange={(e) => {
+                      const templateKey = e.target.value as keyof typeof TEMPLATES;
+                      setSelectedTemplate(templateKey);
+                      if (templateKey && TEMPLATES[templateKey]) {
+                        const template = TEMPLATES[templateKey];
+                        setConstituencies(
+                          template.constituencies.map((c, idx) => ({
+                            id: `const-${idx}`,
+                            name: c.name,
+                            seats: c.seats,
+                            votes: {}
+                          }))
+                        );
+                      }
+                    }}
+                    className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                  >
+                    <option value="">-- Selecciona un template --</option>
+                    <option value="spain">{TEMPLATES.spain.name}</option>
+                    <option value="catalonia">{TEMPLATES.catalonia.name}</option>
+                  </select>
+                  <button
+                    onClick={() => {
+                      setSelectedTemplate('');
+                      setConstituencies([{ id: '1', name: 'Circumscripció 1', seats: 10, votes: {} }]);
+                    }}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-700"
+                  >
+                    Reset
+                  </button>
+                </div>
+              </div>
+            </section>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {/* Secció: Partits */}
+              <section className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+                <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50 flex justify-between items-center">
+                  <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
+                    <Users className="w-5 h-5 mr-2 text-blue-600" />
+                    Partits ({parties.length})
+                  </h2>
+                  <button
+                    onClick={() => {
+                      const newId = (Math.max(...parties.map(p => parseInt(p.id)), 0) + 1).toString();
+                      setParties([
+                        ...parties,
+                        {
+                          id: newId,
+                          name: `Partit ${String.fromCharCode(65 + parties.length)}`,
+                          shortName: String.fromCharCode(65 + parties.length),
+                          color: PRESET_COLORS[parties.length % PRESET_COLORS.length],
+                          votes: 0
+                        }
+                      ]);
+                    }}
+                    className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors"
+                  >
+                    <Plus className="w-4 h-4 mr-1" />
+                    Afegir
+                  </button>
+                </div>
+                
+                <div className="divide-y divide-gray-200 dark:divide-gray-700 max-h-96 overflow-y-auto">
+                  {parties.map((party, index) => (
+                    <div key={party.id} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                      <div className="flex items-center space-x-3">
+                        <input
+                          type="color"
+                          value={party.color}
+                          onChange={(e) => {
+                            const updated = [...parties];
+                            updated[index].color = e.target.value;
+                            setParties(updated);
+                          }}
+                          className="w-10 h-10 rounded cursor-pointer border-0 p-0"
+                        />
+                        <div className="flex-1 grid grid-cols-2 gap-3">
+                          <input
+                            type="text"
+                            value={party.name}
+                            onChange={(e) => {
+                              const updated = [...parties];
+                              updated[index].name = e.target.value;
+                              setParties(updated);
+                            }}
+                            placeholder="Nom del partit"
+                            className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                          />
+                          <input
+                            type="text"
+                            value={party.shortName}
+                            onChange={(e) => {
+                              const updated = [...parties];
+                              updated[index].shortName = e.target.value;
+                              setParties(updated);
+                            }}
+                            placeholder="Sigles"
+                            className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                          />
+                        </div>
+                        <button
+                          onClick={() => setParties(parties.filter((_, i) => i !== index))}
+                          disabled={parties.length <= 1}
+                          className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              {/* Secció: Circumscripcions */}
+              <section className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+                <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50 flex justify-between items-center">
+                  <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
+                    <MapPin className="w-5 h-5 mr-2 text-green-600" />
+                    Circumscripcions ({constituencies.length})
+                  </h2>
+                  <button
+                    onClick={() => {
+                      const newId = (Math.max(...constituencies.map(c => parseInt(c.id)), 0) + 1).toString();
+                      setConstituencies([
+                        ...constituencies,
+                        {
+                          id: newId,
+                          name: `Circumscripció ${constituencies.length + 1}`,
+                          seats: 10,
+                          votes: {}
+                        }
+                      ]);
+                    }}
+                    className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 transition-colors"
+                  >
+                    <Plus className="w-4 h-4 mr-1" />
+                    Afegir
+                  </button>
+                </div>
+                
+                <div className="divide-y divide-gray-200 dark:divide-gray-700 max-h-96 overflow-y-auto">
+                  {constituencies.map((constituency, index) => (
+                    <div key={constituency.id} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                      <div className="flex items-center space-x-3">
+                        <div className="flex-1 grid grid-cols-2 gap-3">
+                          <input
+                            type="text"
+                            value={constituency.name}
+                            onChange={(e) => {
+                              const updated = [...constituencies];
+                              updated[index].name = e.target.value;
+                              setConstituencies(updated);
+                            }}
+                            placeholder="Nom de la circumscripció"
+                            className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                          />
+                          <input
+                            type="number"
+                            min="1"
+                            value={constituency.seats}
+                            onChange={(e) => {
+                              const updated = [...constituencies];
+                              updated[index].seats = parseInt(e.target.value) || 1;
+                              setConstituencies(updated);
+                            }}
+                            placeholder="Escons"
+                            className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                          />
+                        </div>
+                        <button
+                          onClick={() => setConstituencies(constituencies.filter((_, i) => i !== index))}
+                          disabled={constituencies.length <= 1}
+                          className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            </div>
+
+            {/* Botons d'acció */}
+            <div className="flex flex-wrap gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+              <button
+                onClick={() => {
+                  // Calcular resultats
+                  const calcResults = calculateElection(parties, constituencies, method, threshold);
+                  setResults(calcResults);
+                  setActiveTab('results');
+                }}
+                className="inline-flex items-center px-6 py-3 text-base font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors shadow-sm"
+              >
+                <Calculator className="w-5 h-5 mr-2" />
+                Calcular Resultats
+              </button>
+              
+              <button
+                onClick={() => setIsRealTime(!isRealTime)}
+                className={`inline-flex items-center px-4 py-3 text-base font-medium rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors shadow-sm ${
+                  isRealTime 
+                    ? 'text-green-700 bg-green-100 hover:bg-green-200 focus:ring-green-500' 
+                    : 'text-gray-700 bg-gray-100 hover:bg-gray-200 focus:ring-gray-500'
+                }`}
+              >
+                {isRealTime ? <Pause className="w-5 h-5 mr-2" /> : <Play className="w-5 h-5 mr-2" />}
+                Càlcul en temps real {isRealTime ? 'ON' : 'OFF'}
+              </button>
+
+              <button
+                onClick={() => setShowPartyLibrary(true)}
+                className="inline-flex items-center px-4 py-3 text-base font-medium text-purple-700 bg-purple-100 rounded-lg hover:bg-purple-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-colors"
+              >
+                <Users className="w-5 h-5 mr-2" />
+                Biblioteca de Partits
+              </button>
+
+              <div className="flex-1"></div>
+
+              <button
+                onClick={() => {
+                  // Guardar escenari
+                  const scenarioName = prompt('Nom de l\'escenari:');
+                  if (scenarioName) {
+                    const calcResults = calculateElection(parties, constituencies, method, threshold);
+                    setScenarios(prev => [...prev, { name: scenarioName, results: calcResults }]);
+                  }
+                }}
+                className="inline-flex items-center px-4 py-3 text-base font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+              >
+                <Save className="w-5 h-5 mr-2" />
+                Guardar Escenari
+              </button>
+            </div>
+
+            {/* Resum */}
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+              <h3 className="text-sm font-medium text-blue-900 dark:text-blue-200 mb-2">Resum de la configuració</h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                <div>
+                  <span className="text-blue-600 dark:text-blue-400 font-medium">{parties.length}</span>
+                  <span className="text-gray-600 dark:text-gray-400 ml-1">partits</span>
+                </div>
+                <div>
+                  <span className="text-blue-600 dark:text-blue-400 font-medium">{constituencies.length}</span>
+                  <span className="text-gray-600 dark:text-gray-400 ml-1">circumscripcions</span>
+                </div>
+                <div>
+                  <span className="text-blue-600 dark:text-blue-400 font-medium">
+                    {constituencies.reduce((sum, c) => sum + c.seats, 0)}
+                  </span>
+                  <span className="text-gray-600 dark:text-gray-400 ml-1">escons totals</span>
+                </div>
+                <div>
+                  <span className="text-blue-600 dark:text-blue-400 font-medium">{threshold}%</span>
+                  <span className="text-gray-600 dark:text-gray-400 ml-1">umbral</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
 
       case 'results':
         // ✅ Calcula seients totals correctament
@@ -202,10 +523,74 @@ export default function SimulatorPage() {
         });
 
         return (
-          <Hemicycle
-            seats={seatsData}
-            totalSeats={seatsData.reduce((s, p) => s + p.count, 0)}
-          />
+          <div className="p-6">
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Resultats Electorals</h2>
+              <p className="text-gray-600 dark:text-gray-400">
+                Mètode: <span className="font-medium">{METHODS.find(m => m.value === method)?.label}</span> | 
+                Umbral: <span className="font-medium">{threshold}%</span> | 
+                Escons totals: <span className="font-medium">{seatsData.reduce((s, p) => s + p.count, 0)}</span>
+              </p>
+            </div>
+            
+            {results.length > 0 ? (
+              <Hemicycle
+                seats={seatsData}
+                totalSeats={seatsData.reduce((s, p) => s + p.count, 0)}
+              />
+            ) : (
+              <div className="flex flex-col items-center justify-center py-20 text-gray-500 dark:text-gray-400">
+                <Calculator className="w-16 h-16 mb-4 opacity-50" />
+                <p className="text-lg">Encara no hi ha resultats</p>
+                <p className="text-sm">Ves a "Configuració" i prem "Calcular Resultats"</p>
+              </div>
+            )}
+            
+            {/* Taula de resultats detallats */}
+            {results.length > 0 && (
+              <div className="mt-8 overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                  <thead className="bg-gray-50 dark:bg-gray-800">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Partit</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Escons</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">% Escons</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+                    {seatsData
+                      .sort((a, b) => b.count - a.count)
+                      .map((party) => {
+                        const totalSeats = seatsData.reduce((s, p) => s + p.count, 0);
+                        const percentage = totalSeats > 0 ? ((party.count / totalSeats) * 100).toFixed(1) : '0.0';
+                        
+                        return (
+                          <tr key={party.partyId}>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="flex items-center">
+                                <div 
+                                  className="w-4 h-4 rounded-full mr-3" 
+                                  style={{ backgroundColor: party.color }}
+                                />
+                                <span className="text-sm font-medium text-gray-900 dark:text-white">
+                                  {party.partyName}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white font-bold">
+                              {party.count}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                              {percentage}%
+                            </td>
+                          </tr>
+                        );
+                      })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         );
 
       case 'whatif':
@@ -238,7 +623,50 @@ export default function SimulatorPage() {
         return <StepByStep result={results[0] ?? { name: '', totalSeats: 0, totalVotes: 0, parties: [], distribution: [] }} />;
 
       case 'compare':
-        return <div className="p-6 text-gray-700 dark:text-gray-200">Comparador de mètodes electorals</div>;
+        return (
+          <div className="p-6">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Comparador de Mètodes</h2>
+            <p className="text-gray-600 dark:text-gray-400 mb-4">
+              Compara els resultats amb diferents mètodes electorals aplicats als mateixos vots.
+            </p>
+            <button
+              onClick={() => {
+                const methods: ElectoralMethod[] = ['dhondt', 'saintelague', 'hare', 'droop'];
+                const comparisons: Record<ElectoralMethod, ConstituencyResult[]> = {} as any;
+                
+                methods.forEach(m => {
+                  comparisons[m] = calculateElection(parties, constituencies, m, threshold);
+                });
+                
+                setComparisonResults(comparisons);
+                setShowComparison(true);
+              }}
+              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+            >
+              <GitCompare className="w-4 h-4 mr-2" />
+              Comparar Mètodes
+            </button>
+            
+            {showComparison && Object.keys(comparisonResults).length > 0 && (
+              <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+                {Object.entries(comparisonResults).map(([methodKey, methodResults]) => {
+                  const methodLabel = METHODS.find(m => m.value === methodKey)?.label || methodKey;
+                  const totalSeats = methodResults.reduce((sum, constit) => 
+                    sum + constit.parties.reduce((s, p) => s + p.seats, 0), 0
+                  );
+                  
+                  return (
+                    <div key={methodKey} className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+                      <h3 className="font-bold text-lg mb-2 text-gray-900 dark:text-white">{methodLabel}</h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">{METHODS.find(m => m.value === methodKey)?.description}</p>
+                      <div className="text-2xl font-bold text-blue-600">{totalSeats} escons</div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
 
       case 'export':
         return <ExportPanel results={results} method={method} threshold={threshold} />;

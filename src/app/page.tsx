@@ -50,9 +50,9 @@ const features = [
 ];
 
 const stats = [
-  { label: 'Simulacions', value: '1,234', icon: TrendingUp },
-  { label: 'Partits creats', value: '56', icon: Users },
-  { label: 'Escenaris', value: '12', icon: MapPin },
+  { label: 'Simulacions', value: '150', icon: TrendingUp },
+  { label: 'Partits creats', value: '12', icon: Users },
+  { label: 'Escenaris', value: '3', icon: MapPin },
 ];
 
 export default function Dashboard() {

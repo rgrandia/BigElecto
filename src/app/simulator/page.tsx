@@ -586,15 +586,19 @@ export default function SimulatorPage() {
                   Distribució Parlamentària
                 </h2>
                 <Hemicycle
-                  seats={sortedResults.map(r => ({
-                    partyId: r.partyId,
-                    partyName: r.partyName,
-                    color: r.color,
-                    count: r.seats
-                  }))}
-                  totalSeats={totalSeats}
-                  rows={12}
-                />
+  seats={sortedResults.map(r => ({
+    partyId: r.partyId,
+    partyName: r.partyName,
+    color: r.color,
+    count: r.seats
+  }))}
+  totalSeats={totalSeats}
+  majorityThreshold={Math.floor(totalSeats / 2) + 1}
+  onCoalitionChange={(coalitions) => {
+    console.log('Pactes actualitzats:', coalitions);
+    // Aquí pots guardar els pactes a l'estat si vols
+  }}
+/>
               </div>
 
               <div className="bg-white dark:bg-slate-900 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-xl">

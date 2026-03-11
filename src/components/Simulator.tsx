@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { calculateElection, ElectoralMethod, ConstituencyResult } from '@/lib/calculations/electoralMethods';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
 
@@ -49,25 +49,59 @@ export default function Simulator() {
   };
 
   const updatePartyVotes = (id: string, votes: number) => {
-    setParties(parties.map(p => p.id === id ? { ...p, votes } : p));
+    setParties(current => current.map(p => p.id === id ? { ...p, votes } : p));
   };
 
   const addParty = () => {
-    const newId = (parties.length + 1).toString();
     const colors = ['#8b5cf6', '#ec4899', '#06b6d4', '#84cc16', '#f97316'];
-    setParties([...parties, {
-      id: newId,
-      name: `Partit ${newId}`,
-      shortName: newId,
-      color: colors[parties.length % colors.length],
-      votes: 0
-    }]);
+    setParties(current => {
+      const newId = (current.length + 1).toString();
+
+      return [...current, {
+        id: newId,
+        name: `Partit ${newId}`,
+        shortName: newId,
+        color: colors[current.length % colors.length],
+        votes: 0
+      }];
+    });
   };
 
   const removeParty = (id: string) => {
     if (parties.length > 2) {
-      setParties(parties.filter(p => p.id !== id));
+      setParties(current => current.filter(p => p.id !== id));
     }
+  };
+
+  useEffect(() => {
+    if (!result) {
+      return;
+    }
+
+    const votes = parties.map(p => ({
+      partyId: p.id,
+      partyName: p.name,
+      color: p.color,
+      votes: p.votes
+    }));
+
+    setResult(calculateElection(votes, seats, method, threshold));
+  }, [method, parties, result, seats, threshold]);
+
+  const formatVoteShare = (votes: number, totalVotes: number) => {
+    if (totalVotes <= 0) {
+      return '0.00%';
+    }
+
+    return `${((votes / totalVotes) * 100).toFixed(2)}%`;
+  };
+
+  const formatVotesPerSeat = (totalVotes: number, totalSeats: number) => {
+    if (totalSeats <= 0) {
+      return '0';
+    }
+
+    return (totalVotes / totalSeats).toFixed(0);
   };
 
   return (
@@ -144,13 +178,13 @@ export default function Simulator() {
                       <input 
                         type="color" 
                         value={party.color}
-                        onChange={(e) => setParties(parties.map(p => p.id === party.id ? { ...p, color: e.target.value } : p))}
+                        onChange={(e) => setParties(current => current.map(p => p.id === party.id ? { ...p, color: e.target.value } : p))}
                         className="w-10 h-10 rounded cursor-pointer border-0"
                       />
                       <input 
                         type="text" 
                         value={party.name}
-                        onChange={(e) => setParties(parties.map(p => p.id === party.id ? { ...p, name: e.target.value } : p))}
+                        onChange={(e) => setParties(current => current.map(p => p.id === party.id ? { ...p, name: e.target.value } : p))}
                         className="flex-1 p-2 border border-slate-300 rounded focus:ring-2 focus:ring-blue-500"
                         placeholder="Nom del partit"
                       />
@@ -235,7 +269,7 @@ export default function Simulator() {
                             {party.votes.toLocaleString('ca-ES')}
                           </td>
                           <td className="p-4 text-right text-slate-600">
-                            {((party.votes / result.totalVotes) * 100).toFixed(2)}%
+                            {formatVoteShare(party.votes, result.totalVotes)}
                           </td>
                           <td className="p-4 text-right">
                             <span className="inline-flex items-center justify-center w-8 h-8 bg-blue-100 text-blue-800 font-bold rounded-full">
@@ -259,7 +293,7 @@ export default function Simulator() {
                   </div>
                   <div className="p-4 bg-purple-50 rounded-xl border border-purple-200">
                     <div className="text-2xl font-bold text-purple-600">
-                      {(result.totalVotes / result.totalSeats).toFixed(0)}
+                      {formatVotesPerSeat(result.totalVotes, result.totalSeats)}
                     </div>
                     <div className="text-sm text-purple-800">Vots/escons</div>
                   </div>

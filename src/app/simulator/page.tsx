@@ -20,7 +20,9 @@ import {
   Users,
   MapPin,
   LogOut,
-  User
+  User,
+  Zap,
+  Maximize2
 } from 'lucide-react';
 import { 
   calculateElection, 
@@ -33,6 +35,9 @@ import StepByStep from '@/components/StepByStep';
 import ExportPanel from '@/components/ExportPanel';
 import PartyLibrary from '@/components/PartyLibrary';
 import AuthModal from '@/components/AuthModal';
+import WhatIfSimulator from '@/components/WhatIfSimulator';
+import ConstituencyHeatmap from '@/components/ConstituencyHeatmap';
+import PresentationMode from '@/components/PresentationMode';
 import ThemeToggle from '@/components/ThemeToggle';
 import Link from 'next/link';
 
@@ -119,16 +124,18 @@ export default function SimulatorPage() {
   const [method, setMethod] = useState<ElectoralMethod>('dhondt');
   const [threshold, setThreshold] = useState(3);
   const [results, setResults] = useState<ConstituencyResult[]>([]);
-  const [activeTab, setActiveTab] = useState<'setup' | 'results' | 'stepbystep' | 'compare' | 'export'>('setup');
+  const [activeTab, setActiveTab] = useState<'setup' | 'results' | 'whatif' | 'heatmap' | 'stepbystep' | 'compare' | 'export'>('setup');
   const [showComparison, setShowComparison] = useState(false);
   const [comparisonResults, setComparisonResults] = useState<Record<ElectoralMethod, ConstituencyResult[]>>({} as any);
   const [isRealTime, setIsRealTime] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<string>('');
 
-  // Estat per biblioteca i autenticació
+  // Estat per biblioteca, autenticació i funcionalitats noves
   const [showPartyLibrary, setShowPartyLibrary] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [scenarios, setScenarios] = useState<{ name: string; results: ConstituencyResult[] }[]>([]);
+  const [presentationMode, setPresentationMode] = useState(false);
 
   // Carregar usuari al iniciar
   useEffect(() => {
@@ -201,16 +208,16 @@ export default function SimulatorPage() {
   };
 
   const addPartiesFromLibrary = (newParties: any[]) => {
-  const startingIndex = parties.length;
-  const partiesWithNewIds: Party[] = newParties.map((p, i) => ({
-    id: (startingIndex + i + 1).toString(),
-    name: p.name || 'Sense nom',
-    shortName: p.shortName || 'SN',
-    color: p.color || '#3b82f6',
-    votes: 0
-  }));
-  setParties([...parties, ...partiesWithNewIds]);
-};
+    const startingIndex = parties.length;
+    const partiesWithNewIds: Party[] = newParties.map((p, i) => ({
+      id: (startingIndex + i + 1).toString(),
+      name: p.name || 'Sense nom',
+      shortName: p.shortName || 'SN',
+      color: p.color || '#3b82f6',
+      votes: 0
+    }));
+    setParties([...parties, ...partiesWithNewIds]);
+  };
 
   const updateParty = (id: string, updates: Partial<Party>) => {
     setParties(parties.map(p => p.id === id ? { ...p, ...updates } : p));
@@ -265,6 +272,11 @@ export default function SimulatorPage() {
     }
   };
 
+  // Afegir escenari
+  const addScenario = (name: string, scenarioResults: ConstituencyResult[]) => {
+    setScenarios([...scenarios, { name, results: scenarioResults }]);
+  };
+
   // Totals
   const totalSeats = results.reduce((sum, r) => sum + r.totalSeats, 0);
   const aggregatedResults = results.reduce((acc, constituency) => {
@@ -282,6 +294,8 @@ export default function SimulatorPage() {
   const tabs = [
     { id: 'setup', label: 'Configuració', icon: Settings },
     { id: 'results', label: 'Resultats', icon: Calculator },
+    { id: 'whatif', label: 'Què passaria si', icon: Zap },
+    { id: 'heatmap', label: 'Mapa de calor', icon: MapPin },
     { id: 'stepbystep', label: 'Pas a pas', icon: Eye },
     { id: 'compare', label: 'Comparador', icon: GitCompare },
     { id: 'export', label: 'Exportar', icon: Download },
@@ -338,6 +352,16 @@ export default function SimulatorPage() {
               {isRealTime ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
               <span className="hidden sm:inline">{isRealTime ? 'Temps real ON' : 'Temps real'}</span>
             </motion.button>
+
+            {results.length > 0 && (
+              <button
+                onClick={() => setPresentationMode(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium"
+              >
+                <Maximize2 className="w-4 h-4" />
+                <span className="hidden sm:inline">Presentació</span>
+              </button>
+            )}
           </div>
         </div>
       </header>
@@ -586,19 +610,15 @@ export default function SimulatorPage() {
                   Distribució Parlamentària
                 </h2>
                 <Hemicycle
-  seats={sortedResults.map(r => ({
-    partyId: r.partyId,
-    partyName: r.partyName,
-    color: r.color,
-    count: r.seats
-  }))}
-  totalSeats={totalSeats}
-  majorityThreshold={Math.floor(totalSeats / 2) + 1}
-  onCoalitionChange={(coalitions) => {
-    console.log('Pactes actualitzats:', coalitions);
-    // Aquí pots guardar els pactes a l'estat si vols
-  }}
-/>
+                  seats={sortedResults.map(r => ({
+                    partyId: r.partyId,
+                    partyName: r.partyName,
+                    color: r.color,
+                    count: r.seats
+                  }))}
+                  totalSeats={totalSeats}
+                  majorityThreshold={Math.floor(totalSeats / 2) + 1}
+                />
               </div>
 
               <div className="bg-white dark:bg-slate-900 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-xl">
@@ -648,6 +668,42 @@ export default function SimulatorPage() {
                     })}
                   </tbody>
                 </table>
+              </div>
+            </motion.div>
+          )}
+
+          {activeTab === 'whatif' && (
+            <motion.div
+              key="whatif"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              <WhatIfSimulator
+                baseParties={parties}
+                baseConstituencies={constituencies}
+                method={method}
+                threshold={threshold}
+                onApplyChanges={(newParties, newConstituencies) => {
+                  setParties(newParties);
+                  setConstituencies(newConstituencies);
+                  setActiveTab('setup');
+                }}
+              />
+            </motion.div>
+          )}
+
+          {activeTab === 'heatmap' && results.length > 0 && (
+            <motion.div
+              key="heatmap"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+            >
+              <div className="bg-white dark:bg-slate-900 rounded-2xl p-8 border border-slate-200 dark:border-slate-800 shadow-xl">
+                <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-6 flex items-center gap-2">
+                  <MapPin className="w-6 h-6 text-orange-500" />
+                  Mapa de calor de circumscripcions
+                </h2>
+                <ConstituencyHeatmap results={results} constituencies={constituencies} />
               </div>
             </motion.div>
           )}
@@ -775,6 +831,13 @@ export default function SimulatorPage() {
         isOpen={showAuthModal}
         onClose={() => setShowAuthModal(false)}
         onLogin={setCurrentUser}
+      />
+
+      <PresentationMode
+        results={results}
+        scenarios={scenarios}
+        isActive={presentationMode}
+        onClose={() => setPresentationMode(false)}
       />
     </div>
   );

@@ -200,15 +200,17 @@ export default function SimulatorPage() {
     }]);
   };
 
-  const addPartiesFromLibrary = (newParties: Party[]) => {
-    const startingIndex = parties.length;
-    const partiesWithNewIds = newParties.map((p, i) => ({
-      ...p,
-      id: (startingIndex + i + 1).toString(),
-      votes: 0
-    }));
-    setParties([...parties, ...partiesWithNewIds]);
-  };
+  const addPartiesFromLibrary = (newParties: any[]) => {
+  const startingIndex = parties.length;
+  const partiesWithNewIds: Party[] = newParties.map((p, i) => ({
+    id: (startingIndex + i + 1).toString(),
+    name: p.name || 'Sense nom',
+    shortName: p.shortName || 'SN',
+    color: p.color || '#3b82f6',
+    votes: 0
+  }));
+  setParties([...parties, ...partiesWithNewIds]);
+};
 
   const updateParty = (id: string, updates: Partial<Party>) => {
     setParties(parties.map(p => p.id === id ? { ...p, ...updates } : p));

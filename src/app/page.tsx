@@ -35,7 +35,7 @@ const features = [
     title: 'Comparador',
     description: 'Compara diferents mètodes simultàniament',
     icon: GitCompare,
-    href: '/compare',
+    href: '/simulator?tab=compare',
     color: 'from-orange-500 to-red-500',
     bgColor: 'bg-orange-500/10',
   },
@@ -43,7 +43,7 @@ const features = [
     title: 'Anàlisi',
     description: 'Visualitzacions avançades i informes',
     icon: BarChart3,
-    href: '/analysis',
+    href: '/simulator?tab=results',
     color: 'from-green-500 to-emerald-500',
     bgColor: 'bg-green-500/10',
   },
@@ -58,7 +58,6 @@ const stats = [
 export default function Dashboard() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 transition-colors duration-300">
-      {/* Header */}
       <header className="sticky top-0 z-50 backdrop-blur-xl bg-white/70 dark:bg-slate-950/70 border-b border-slate-200 dark:border-slate-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <motion.div 
@@ -94,7 +93,6 @@ export default function Dashboard() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {/* Hero Section */}
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -113,7 +111,6 @@ export default function Dashboard() {
           </p>
         </motion.div>
 
-        {/* Stats */}
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -141,7 +138,6 @@ export default function Dashboard() {
           ))}
         </motion.div>
 
-        {/* Features Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {features.map((feature, index) => (
             <motion.div
@@ -178,7 +174,6 @@ export default function Dashboard() {
           ))}
         </div>
 
-        {/* Quick Actions */}
         <motion.div 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}

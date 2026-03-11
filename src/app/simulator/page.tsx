@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import type { LucideIcon } from 'lucide-react';
 import { 
   Calculator, 
   Save, 
@@ -64,6 +65,14 @@ interface User {
   id: string;
   name: string;
   email: string;
+}
+
+type TabId = 'setup' | 'results' | 'whatif' | 'heatmap' | 'prediction' | 'stepbystep' | 'compare' | 'export';
+
+interface TabConfig {
+  id: TabId;
+  label: string;
+  icon: LucideIcon;
 }
 
 // Plantilles
@@ -294,7 +303,7 @@ export default function SimulatorPage() {
 
   const sortedResults = Object.values(aggregatedResults).sort((a, b) => b.seats - a.seats);
 
-  const tabs = [
+  const tabs: TabConfig[] = [
     { id: 'setup', label: 'Configuració', icon: Settings },
     { id: 'results', label: 'Resultats', icon: Calculator },
     { id: 'whatif', label: 'Què passaria si', icon: Zap },
@@ -379,7 +388,7 @@ export default function SimulatorPage() {
           {tabs.map(tab => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
+              onClick={() => setActiveTab(tab.id)}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
                 activeTab === tab.id
                   ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm'

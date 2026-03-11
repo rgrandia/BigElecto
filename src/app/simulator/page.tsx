@@ -22,7 +22,8 @@ import {
   LogOut,
   User,
   Zap,
-  Maximize2
+  Maximize2,
+  TrendingUp
 } from 'lucide-react';
 import { 
   calculateElection, 
@@ -39,6 +40,9 @@ import WhatIfSimulator from '@/components/WhatIfSimulator';
 import ConstituencyHeatmap from '@/components/ConstituencyHeatmap';
 import PresentationMode from '@/components/PresentationMode';
 import ThemeToggle from '@/components/ThemeToggle';
+import PredictionPanel from '@/components/PredictionPanel';
+import ElectionHistory from '@/components/ElectionHistory';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import Link from 'next/link';
 
 // Tipus
@@ -124,7 +128,7 @@ export default function SimulatorPage() {
   const [method, setMethod] = useState<ElectoralMethod>('dhondt');
   const [threshold, setThreshold] = useState(3);
   const [results, setResults] = useState<ConstituencyResult[]>([]);
-  const [activeTab, setActiveTab] = useState<'setup' | 'results' | 'whatif' | 'heatmap' | 'stepbystep' | 'compare' | 'export'>('setup');
+  const [activeTab, setActiveTab] = useState<'setup' | 'results' | 'whatif' | 'heatmap' | 'prediction' | 'history' | 'stepbystep' | 'compare' | 'export'>('setup');
   const [showComparison, setShowComparison] = useState(false);
   const [comparisonResults, setComparisonResults] = useState<Record<ElectoralMethod, ConstituencyResult[]>>({} as any);
   const [isRealTime, setIsRealTime] = useState(false);
@@ -296,6 +300,8 @@ export default function SimulatorPage() {
     { id: 'results', label: 'Resultats', icon: Calculator },
     { id: 'whatif', label: 'Què passaria si', icon: Zap },
     { id: 'heatmap', label: 'Mapa de calor', icon: MapPin },
+    { id: 'prediction', label: 'Predicció', icon: TrendingUp },
+    { id: 'history', label: 'Històric', icon: History },
     { id: 'stepbystep', label: 'Pas a pas', icon: Eye },
     { id: 'compare', label: 'Comparador', icon: GitCompare },
     { id: 'export', label: 'Exportar', icon: Download },
@@ -683,6 +689,7 @@ export default function SimulatorPage() {
                 baseConstituencies={constituencies}
                 method={method}
                 threshold={threshold}
+                onSaveScenario={({ name, results }) => addScenario(name, results)}
                 onApplyChanges={(newParties, newConstituencies) => {
                   setParties(newParties);
                   setConstituencies(newConstituencies);
@@ -704,6 +711,38 @@ export default function SimulatorPage() {
                   Mapa de calor de circumscripcions
                 </h2>
                 <ConstituencyHeatmap results={results} constituencies={constituencies} />
+              </div>
+            </motion.div>
+          )}
+
+
+          {activeTab === 'prediction' && (
+            <motion.div
+              key="prediction"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              <div className="bg-white dark:bg-slate-900 rounded-2xl p-8 border border-slate-200 dark:border-slate-800 shadow-xl">
+                <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-6">Predicció de resultats</h2>
+                <PredictionPanel
+                  parties={parties}
+                  constituencies={constituencies}
+                  method={method}
+                  threshold={threshold}
+                />
+              </div>
+            </motion.div>
+          )}
+
+          {activeTab === 'history' && results.length > 0 && (
+            <motion.div
+              key="history"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              <div className="bg-white dark:bg-slate-900 rounded-2xl p-8 border border-slate-200 dark:border-slate-800 shadow-xl">
+                <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-6">Històric d'eleccions</h2>
+                <ElectionHistory currentResults={results} />
               </div>
             </motion.div>
           )}
@@ -778,6 +817,31 @@ export default function SimulatorPage() {
                 </button>
 
                 {showComparison && Object.keys(comparisonResults).length > 0 && (
+                  <>
+                    <div className="mt-8"> 
+                      <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-3">Comparador d'escenaris (base / optimista / pessimista)</h3>
+                      <div className="h-72">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart
+                            data={sortedResults.map((p) => ({
+                              party: p.partyName,
+                              Base: p.seats,
+                              Optimista: Math.max(0, Math.round(p.seats * 1.1)),
+                              Pessimista: Math.max(0, Math.round(p.seats * 0.9))
+                            }))}
+                          >
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="party" />
+                            <YAxis />
+                            <Tooltip />
+                            <Bar dataKey="Base" fill="#2563eb" />
+                            <Bar dataKey="Optimista" fill="#16a34a" />
+                            <Bar dataKey="Pessimista" fill="#dc2626" />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+
                   <div className="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     {METHODS.map(m => {
                       const methodResults = comparisonResults[m.value];
@@ -812,6 +876,7 @@ export default function SimulatorPage() {
                       );
                     })}
                   </div>
+                  </>
                 )}
               </div>
             </motion.div>

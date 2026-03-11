@@ -324,7 +324,7 @@ export default function Hemicycle({
                       className="px-2 py-1 rounded text-xs font-medium text-white"
                       style={{ backgroundColor: party.color }}
                     >
-                      {party.shortName}
+                      {party?.partyName}
                     </span>
                   ) : null;
                 })}

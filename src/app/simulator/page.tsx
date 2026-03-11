@@ -804,10 +804,6 @@ export default function SimulatorPage() {
             {results.length > 0 ? (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {results.map((constituency, idx) => {
-                  // Trobar l'últim escó (l'últim a la distribució)
-                  const lastSeat = constituency.distribution[constituency.distribution.length - 1];
-                  const lastSeatParty = constituency.parties.find(p => p.partyId === lastSeat?.partyId);
-                  
                   // Trobar el segon classificat per l'últim escó
                   const sortedParties = [...constituency.parties].sort((a, b) => {
                     // Ordenar per quocient de l'últim escó assignat
@@ -1219,7 +1215,7 @@ export default function SimulatorPage() {
             <div className="flex-1 overflow-y-auto p-6">
               <PartyLibrary
                 currentParties={parties}
-                onSelect={(selectedParties: Array<{ id: string; name: string; shortName: string; color: string; votes: number }>) => setSelectedLibraryParties(selectedParties)}
+                onSelect={(selectedParties: any) => setSelectedLibraryParties(selectedParties)}
                 onClose={() => {}}
               />
             </div>

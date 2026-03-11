@@ -48,6 +48,7 @@ interface WhatIfSimulatorProps {
   method: ElectoralMethod;
   threshold: number;
   onApplyChanges?: (parties: Party[], constituencies: Constituency[]) => void;
+  onSaveScenario?: (scenario: { name: string; results: ConstituencyResult[] }) => void;
 }
 
 export default function WhatIfSimulator({
@@ -55,7 +56,8 @@ export default function WhatIfSimulator({
   baseConstituencies,
   method,
   threshold,
-  onApplyChanges
+  onApplyChanges,
+  onSaveScenario
 }: WhatIfSimulatorProps) {
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
   const [activeScenario, setActiveScenario] = useState<string>('current');
@@ -163,6 +165,7 @@ export default function WhatIfSimulator({
     };
     
     setScenarios([...scenarios, newScenario]);
+    onSaveScenario?.({ name: newScenario.name, results: newScenario.results });
   };
 
   // Carregar escenari
@@ -350,6 +353,33 @@ export default function WhatIfSimulator({
             >
               <Save className="w-4 h-4" />
               Guardar actual
+            </button>
+            <button
+              onClick={() => {
+                setCurrentVariation(0);
+                setTimeout(saveScenario, 0);
+              }}
+              className="px-3 py-2 bg-slate-200 dark:bg-slate-700 rounded-lg text-sm font-medium"
+            >
+              Base
+            </button>
+            <button
+              onClick={() => {
+                setCurrentVariation(10);
+                setTimeout(saveScenario, 0);
+              }}
+              className="px-3 py-2 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-lg text-sm font-medium"
+            >
+              Optimista
+            </button>
+            <button
+              onClick={() => {
+                setCurrentVariation(-10);
+                setTimeout(saveScenario, 0);
+              }}
+              className="px-3 py-2 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-lg text-sm font-medium"
+            >
+              Pessimista
             </button>
             <button
               onClick={applyToMain}

@@ -17,12 +17,12 @@ export default function ConstituencyHeatmap({ results, constituencies }: Heatmap
       const winner = sorted[0];
       const second = sorted[1];
       const margin = winner && second ? winner.seats - second.seats : 0;
-      const totalVotes = result.totalVotes;
-      const voteMargin = winner && second ? 
-        ((winner.votes / (winner.seats || 1)) - (second.votes / (second.seats || 1))) : 0;
-      
-      // Calcular intensitat (0-100)
-      const intensity = Math.min(100, (margin / result.totalSeats) * 100 + 20);
+      const voteGapPct = winner && second && result.totalVotes > 0
+        ? ((winner.votes - second.votes) / result.totalVotes) * 100
+        : 0;
+
+      // Intensitat segons diferència de vots entre 1r i 2n
+      const intensity = Math.min(100, Math.max(10, Math.abs(voteGapPct) * 8));
       
       // Determinar tipus
       let type: 'landslide' | 'comfortable' | 'tight' | 'tossup' = 'tossup';
@@ -37,7 +37,8 @@ export default function ConstituencyHeatmap({ results, constituencies }: Heatmap
         intensity,
         type,
         winner,
-        second
+        second,
+        voteGapPct
       };
     });
   }, [results, constituencies]);
@@ -157,13 +158,13 @@ export default function ConstituencyHeatmap({ results, constituencies }: Heatmap
                 <div className="flex justify-between text-xs">
                   <span className="text-slate-600 dark:text-slate-400">Marge:</span>
                   <span className="font-bold text-slate-900 dark:text-white">
-                    +{data.margin} escons
+                    {data.voteGapPct.toFixed(1)}% vots
                   </span>
                 </div>
                 <div className="w-full h-2 bg-white/50 dark:bg-slate-700/50 rounded-full mt-1 overflow-hidden">
                   <div 
                     className="h-full bg-slate-900 dark:bg-white rounded-full transition-all"
-                    style={{ width: `${Math.min(100, (data.margin / data.totalSeats) * 200)}%` }}
+                    style={{ width: `${Math.min(100, Math.abs(data.voteGapPct) * 5)}%` }}
                   />
                 </div>
               </div>

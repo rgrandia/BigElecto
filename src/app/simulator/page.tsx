@@ -40,6 +40,7 @@ import ConstituencyHeatmap from '@/components/ConstituencyHeatmap';
 import PresentationMode from '@/components/PresentationMode';
 import ThemeToggle from '@/components/ThemeToggle';
 import PredictionPanel from '@/components/PredictionPanel';
+import ElectionHistory from '@/components/ElectionHistory';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import Link from 'next/link';
 
@@ -126,7 +127,7 @@ export default function SimulatorPage() {
   const [method, setMethod] = useState<ElectoralMethod>('dhondt');
   const [threshold, setThreshold] = useState(3);
   const [results, setResults] = useState<ConstituencyResult[]>([]);
-  const [activeTab, setActiveTab] = useState<'setup' | 'results' | 'whatif' | 'heatmap' | 'prediction' | 'stepbystep' | 'compare' | 'export'>('setup');
+  const [activeTab, setActiveTab] = useState<'setup' | 'results' | 'whatif' | 'heatmap' | 'prediction' | 'history' | 'stepbystep' | 'compare' | 'export'>('setup');
   const [showComparison, setShowComparison] = useState(false);
   const [comparisonResults, setComparisonResults] = useState<Record<ElectoralMethod, ConstituencyResult[]>>({} as any);
   const [isRealTime, setIsRealTime] = useState(false);
@@ -299,6 +300,7 @@ export default function SimulatorPage() {
     { id: 'whatif', label: 'Què passaria si', icon: Zap },
     { id: 'heatmap', label: 'Mapa de calor', icon: MapPin },
     { id: 'prediction', label: 'Predicció', icon: TrendingUp },
+    { id: 'history', label: 'Històric', icon: History },
     { id: 'stepbystep', label: 'Pas a pas', icon: Eye },
     { id: 'compare', label: 'Comparador', icon: GitCompare },
     { id: 'export', label: 'Exportar', icon: Download },
@@ -722,9 +724,8 @@ export default function SimulatorPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
             >
-              <div className="bg-gradient-to-br from-white to-indigo-50 dark:from-slate-900 dark:to-slate-900 rounded-2xl p-8 border border-indigo-100 dark:border-slate-800 shadow-xl">
-                <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Predicció de resultats</h2>
-                <p className="text-sm text-slate-600 dark:text-slate-300 mb-6">Ajusta enquestes i incertesa per visualitzar escenaris probables.</p>
+              <div className="bg-white dark:bg-slate-900 rounded-2xl p-8 border border-slate-200 dark:border-slate-800 shadow-xl">
+                <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-6">Predicció de resultats</h2>
                 <PredictionPanel
                   parties={parties}
                   constituencies={constituencies}
@@ -735,6 +736,18 @@ export default function SimulatorPage() {
             </motion.div>
           )}
 
+          {activeTab === 'history' && results.length > 0 && (
+            <motion.div
+              key="history"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              <div className="bg-white dark:bg-slate-900 rounded-2xl p-8 border border-slate-200 dark:border-slate-800 shadow-xl">
+                <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-6">Històric d'eleccions</h2>
+                <ElectionHistory currentResults={results} />
+              </div>
+            </motion.div>
+          )}
 
           {activeTab === 'stepbystep' && results.length > 0 && (
             <motion.div

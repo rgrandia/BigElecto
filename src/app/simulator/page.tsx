@@ -190,14 +190,23 @@ export default function SimulatorPage() {
     }));
   };
 
-  // Funció auxiliar per convertir Constituency al format esperat
-  const convertConstituenciesForCalculation = (constituencies: Constituency[]) => {
-    return constituencies.map(c => ({
-      id: c.id,
-      name: c.name,
-      seats: c.seats,
-      votes: c.votes
-    }));
+  // Funció per calcular totes les circumscripcions
+  const calculateAllConstituencies = (): ConstituencyResult[] => {
+    const partiesForCalc = convertPartiesForCalculation(parties);
+    
+    return constituencies.map(constituency => {
+      const result = calculateElection(
+        partiesForCalc,
+        constituency.seats,
+        method,
+        threshold
+      );
+      // Afegir el nom de la circumscripció al resultat
+      return {
+        ...result,
+        name: constituency.name
+      };
+    });
   };
 
   // --- Render Tabs ---
@@ -451,10 +460,8 @@ export default function SimulatorPage() {
             <div className="flex flex-wrap gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
               <button
                 onClick={() => {
-                  // Calcular resultats amb conversió de tipus
-                  const partiesForCalc = convertPartiesForCalculation(parties);
-                  const constituenciesForCalc = convertConstituenciesForCalculation(constituencies);
-                  const calcResults = calculateElection(partiesForCalc, constituenciesForCalc, method, threshold);
+                  // Calcular resultats per totes les circumscripcions
+                  const calcResults = calculateAllConstituencies();
                   setResults(calcResults);
                   setActiveTab('results');
                 }}
@@ -491,9 +498,7 @@ export default function SimulatorPage() {
                   // Guardar escenari
                   const scenarioName = prompt('Nom de l\'escenari:');
                   if (scenarioName) {
-                    const partiesForCalc = convertPartiesForCalculation(parties);
-                    const constituenciesForCalc = convertConstituenciesForCalculation(constituencies);
-                    const calcResults = calculateElection(partiesForCalc, constituenciesForCalc, method, threshold);
+                    const calcResults = calculateAllConstituencies();
                     setScenarios(prev => [...prev, { name: scenarioName, results: calcResults }]);
                   }
                 }}
@@ -657,11 +662,22 @@ export default function SimulatorPage() {
               onClick={() => {
                 const methods: ElectoralMethod[] = ['dhondt', 'saintelague', 'hare', 'droop'];
                 const comparisons: Record<ElectoralMethod, ConstituencyResult[]> = {} as any;
+                const partiesForCalc = convertPartiesForCalculation(parties);
                 
                 methods.forEach(m => {
-                  const partiesForCalc = convertPartiesForCalculation(parties);
-                  const constituenciesForCalc = convertConstituenciesForCalculation(constituencies);
-                  comparisons[m] = calculateElection(partiesForCalc, constituenciesForCalc, m, threshold);
+                  // Calcular per totes les circumscripcions amb cada mètode
+                  comparisons[m] = constituencies.map(constituency => {
+                    const result = calculateElection(
+                      partiesForCalc,
+                      constituency.seats,
+                      m,
+                      threshold
+                    );
+                    return {
+                      ...result,
+                      name: constituency.name
+                    };
+                  });
                 });
                 
                 setComparisonResults(comparisons);

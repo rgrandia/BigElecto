@@ -1,55 +1,27 @@
 'use client';
 
-import { useTheme } from './ThemeProvider';
-import { Sun, Moon, Monitor } from 'lucide-react';
-import { motion } from 'framer-motion';
-import { useEffect, useState } from 'react';
+import { createContext, useContext, useState } from 'react';
 
-export default function ThemeToggle() {
-  const { theme, setTheme, resolvedTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
+type Theme = 'light';
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+interface ThemeContextType {
+  theme: Theme;
+  setTheme: (theme: Theme) => void;
+  resolvedTheme: 'light';
+}
 
-  // No renderitzar res fins que estigui muntat (evita hydration mismatch)
-  if (!mounted) {
-    return <div className="w-32 h-10 bg-slate-200 dark:bg-slate-800 rounded-full" />;
-  }
+const ThemeContext = createContext<ThemeContextType>({
+  theme: 'light',
+  setTheme: () => {},
+  resolvedTheme: 'light',
+});
 
-  const options: { value: 'light' | 'dark' | 'system'; icon: React.ReactNode; label: string }[] = [
-    { value: 'light', icon: <Sun className="w-4 h-4" />, label: 'Clar' },
-    { value: 'dark', icon: <Moon className="w-4 h-4" />, label: 'Fosc' },
-    { value: 'system', icon: <Monitor className="w-4 h-4" />, label: 'Sistema' },
-  ];
-
+export function ThemeProvider({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex items-center gap-1 p-1 rounded-full bg-slate-200 dark:bg-slate-800">
-      {options.map((option) => (
-        <motion.button
-          key={option.value}
-          onClick={() => setTheme(option.value)}
-          className={`relative flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-            theme === option.value
-              ? 'text-white'
-              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-          }`}
-          whileTap={{ scale: 0.95 }}
-        >
-          {theme === option.value && (
-            <motion.div
-              layoutId="theme-indicator"
-              className="absolute inset-0 bg-blue-500 rounded-full"
-              transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
-            />
-          )}
-          <span className="relative z-10 flex items-center gap-1.5">
-            {option.icon}
-            <span className="hidden sm:inline">{option.label}</span>
-          </span>
-        </motion.button>
-      ))}
-    </div>
+    <ThemeContext.Provider value={{ theme: 'light', setTheme: () => {}, resolvedTheme: 'light' }}>
+      {children}
+    </ThemeContext.Provider>
   );
 }
+
+export const useTheme = () => useContext(ThemeContext);

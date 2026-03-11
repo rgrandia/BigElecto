@@ -183,7 +183,7 @@ export default function SimulatorPage() {
   // Funció auxiliar per convertir Party al format esperat per calculateElection
   const convertPartiesForCalculation = (parties: Party[]) => {
     return parties.map(p => ({
-      partyId: p.id
+      partyId: p.id,
       partyName: p.name,
       color: p.color,
       votes: p.votes

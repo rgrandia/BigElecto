@@ -18,11 +18,12 @@ import {
   Play,
   Pause,
   Users,
-  MapPin
+  MapPin,
+  LogOut,
+  User
 } from 'lucide-react';
 import { 
   calculateElection, 
-  calculateDivisorMethod,
   ElectoralMethod, 
   ConstituencyResult,
   PartyResult 
@@ -30,6 +31,8 @@ import {
 import Hemicycle from '@/components/Hemicycle';
 import StepByStep from '@/components/StepByStep';
 import ExportPanel from '@/components/ExportPanel';
+import PartyLibrary from '@/components/PartyLibrary';
+import AuthModal from '@/components/AuthModal';
 import ThemeToggle from '@/components/ThemeToggle';
 import Link from 'next/link';
 
@@ -40,8 +43,6 @@ interface Party {
   shortName: string;
   color: string;
   votes: number;
-  isCoalition?: boolean;
-  coalitionId?: string;
 }
 
 interface Constituency {
@@ -51,11 +52,10 @@ interface Constituency {
   votes: Record<string, number>;
 }
 
-interface Coalition {
+interface User {
   id: string;
   name: string;
-  partyIds: string[];
-  color: string;
+  email: string;
 }
 
 // Plantilles
@@ -104,6 +104,7 @@ const PRESET_COLORS = [
 ];
 
 export default function SimulatorPage() {
+  // Estat principal
   const [parties, setParties] = useState<Party[]>([
     { id: '1', name: 'Partit A', shortName: 'A', color: '#3b82f6', votes: 120000 },
     { id: '2', name: 'Partit B', shortName: 'B', color: '#ef4444', votes: 95000 },
@@ -115,7 +116,6 @@ export default function SimulatorPage() {
     { id: '1', name: 'Circumscripció 1', seats: 10, votes: {} }
   ]);
   
-  const [coalitions, setCoalitions] = useState<Coalition[]>([]);
   const [method, setMethod] = useState<ElectoralMethod>('dhondt');
   const [threshold, setThreshold] = useState(3);
   const [results, setResults] = useState<ConstituencyResult[]>([]);
@@ -125,6 +125,30 @@ export default function SimulatorPage() {
   const [isRealTime, setIsRealTime] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<string>('');
 
+  // Estat per biblioteca i autenticació
+  const [showPartyLibrary, setShowPartyLibrary] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+
+  // Carregar usuari al iniciar
+  useEffect(() => {
+    const saved = localStorage.getItem('bigelecto-current-user');
+    if (saved) {
+      try {
+        setCurrentUser(JSON.parse(saved));
+      } catch (e) {
+        console.error('Error carregant usuari:', e);
+      }
+    }
+  }, []);
+
+  // Tancar sessió
+  const logout = () => {
+    localStorage.removeItem('bigelecto-current-user');
+    setCurrentUser(null);
+  };
+
+  // Calcular resultats
   const calculateResults = useCallback(() => {
     const newResults = constituencies.map(constituency => {
       const votes = parties.map(p => ({
@@ -157,12 +181,14 @@ export default function SimulatorPage() {
     }
   }, [parties, constituencies, method, threshold, showComparison]);
 
+  // Càlcul en temps real
   useEffect(() => {
     if (isRealTime) {
       calculateResults();
     }
   }, [isRealTime, parties, constituencies, method, threshold, calculateResults]);
 
+  // Gestió de partits
   const addParty = () => {
     const newId = (parties.length + 1).toString();
     setParties([...parties, {
@@ -172,6 +198,16 @@ export default function SimulatorPage() {
       color: PRESET_COLORS[parties.length % PRESET_COLORS.length],
       votes: 0
     }]);
+  };
+
+  const addPartiesFromLibrary = (newParties: Party[]) => {
+    const startingIndex = parties.length;
+    const partiesWithNewIds = newParties.map((p, i) => ({
+      ...p,
+      id: (startingIndex + i + 1).toString(),
+      votes: 0
+    }));
+    setParties([...parties, ...partiesWithNewIds]);
   };
 
   const updateParty = (id: string, updates: Partial<Party>) => {
@@ -184,6 +220,7 @@ export default function SimulatorPage() {
     }
   };
 
+  // Gestió de circumscripcions
   const addConstituency = () => {
     const newId = (constituencies.length + 1).toString();
     setConstituencies([...constituencies, {
@@ -212,6 +249,7 @@ export default function SimulatorPage() {
     ));
   };
 
+  // Aplicar plantilla
   const applyTemplate = (templateKey: string) => {
     const template = TEMPLATES[templateKey as keyof typeof TEMPLATES];
     if (template) {
@@ -225,6 +263,7 @@ export default function SimulatorPage() {
     }
   };
 
+  // Totals
   const totalSeats = results.reduce((sum, r) => sum + r.totalSeats, 0);
   const aggregatedResults = results.reduce((acc, constituency) => {
     constituency.parties.forEach(p => {
@@ -259,6 +298,31 @@ export default function SimulatorPage() {
           
           <div className="flex items-center gap-3">
             <ThemeToggle />
+            
+            {currentUser ? (
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-sm font-bold">
+                  {currentUser.name.charAt(0).toUpperCase()}
+                </div>
+                <span className="hidden sm:inline text-sm text-slate-600 dark:text-slate-400">{currentUser.name}</span>
+                <button
+                  onClick={logout}
+                  className="p-2 text-slate-400 hover:text-red-500 transition-colors"
+                  title="Tancar sessió"
+                >
+                  <LogOut className="w-4 h-4" />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowAuthModal(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-medium transition-colors"
+              >
+                <User className="w-4 h-4" />
+                <span className="hidden sm:inline">Iniciar sessió</span>
+              </button>
+            )}
+            
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
@@ -311,13 +375,22 @@ export default function SimulatorPage() {
                     </span>
                     Partits
                   </h2>
-                  <button
-                    onClick={addParty}
-                    className="flex items-center gap-2 px-3 py-1.5 bg-purple-500 hover:bg-purple-600 text-white rounded-lg text-sm font-medium transition-colors"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Afegir
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setShowPartyLibrary(true)}
+                      className="flex items-center gap-2 px-3 py-1.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-lg text-sm font-medium hover:bg-purple-200 dark:hover:bg-purple-900/50 transition-colors"
+                    >
+                      <Users className="w-4 h-4" />
+                      Biblioteca
+                    </button>
+                    <button
+                      onClick={addParty}
+                      className="flex items-center gap-2 px-3 py-1.5 bg-purple-500 hover:bg-purple-600 text-white rounded-lg text-sm font-medium transition-colors"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Nou
+                    </button>
+                  </div>
                 </div>
 
                 <div className="space-y-3">
@@ -683,6 +756,20 @@ export default function SimulatorPage() {
           )}
         </AnimatePresence>
       </main>
+
+      {showPartyLibrary && (
+        <PartyLibrary
+          onSelect={addPartiesFromLibrary}
+          onClose={() => setShowPartyLibrary(false)}
+          currentParties={parties}
+        />
+      )}
+
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        onLogin={setCurrentUser}
+      />
     </div>
   );
 }

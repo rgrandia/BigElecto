@@ -28,6 +28,8 @@ import {
   PartyResult 
 } from '@/lib/calculations/electoralMethods';
 import Hemicycle from '@/components/Hemicycle';
+import StepByStep from '@/components/StepByStep';
+import ExportPanel from '@/components/ExportPanel';
 import ThemeToggle from '@/components/ThemeToggle';
 import Link from 'next/link';
 
@@ -46,7 +48,7 @@ interface Constituency {
   id: string;
   name: string;
   seats: number;
-  votes: Record<string, number>; // partyId -> votes
+  votes: Record<string, number>;
 }
 
 interface Coalition {
@@ -102,7 +104,6 @@ const PRESET_COLORS = [
 ];
 
 export default function SimulatorPage() {
-  // Estat principal
   const [parties, setParties] = useState<Party[]>([
     { id: '1', name: 'Partit A', shortName: 'A', color: '#3b82f6', votes: 120000 },
     { id: '2', name: 'Partit B', shortName: 'B', color: '#ef4444', votes: 95000 },
@@ -118,13 +119,12 @@ export default function SimulatorPage() {
   const [method, setMethod] = useState<ElectoralMethod>('dhondt');
   const [threshold, setThreshold] = useState(3);
   const [results, setResults] = useState<ConstituencyResult[]>([]);
-  const [activeTab, setActiveTab] = useState<'setup' | 'results' | 'stepbystep' | 'compare'>('setup');
+  const [activeTab, setActiveTab] = useState<'setup' | 'results' | 'stepbystep' | 'compare' | 'export'>('setup');
   const [showComparison, setShowComparison] = useState(false);
   const [comparisonResults, setComparisonResults] = useState<Record<ElectoralMethod, ConstituencyResult[]>>({} as any);
   const [isRealTime, setIsRealTime] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<string>('');
 
-  // Calcular resultats
   const calculateResults = useCallback(() => {
     const newResults = constituencies.map(constituency => {
       const votes = parties.map(p => ({
@@ -139,7 +139,6 @@ export default function SimulatorPage() {
     
     setResults(newResults);
     
-    // Calcular comparació si està activa
     if (showComparison) {
       const comparison: Record<ElectoralMethod, ConstituencyResult[]> = {} as any;
       METHODS.forEach(m => {
@@ -158,14 +157,12 @@ export default function SimulatorPage() {
     }
   }, [parties, constituencies, method, threshold, showComparison]);
 
-  // Càlcul en temps real
   useEffect(() => {
     if (isRealTime) {
       calculateResults();
     }
   }, [isRealTime, parties, constituencies, method, threshold, calculateResults]);
 
-  // Gestió de partits
   const addParty = () => {
     const newId = (parties.length + 1).toString();
     setParties([...parties, {
@@ -187,7 +184,6 @@ export default function SimulatorPage() {
     }
   };
 
-  // Gestió de circumscripcions
   const addConstituency = () => {
     const newId = (constituencies.length + 1).toString();
     setConstituencies([...constituencies, {
@@ -216,7 +212,6 @@ export default function SimulatorPage() {
     ));
   };
 
-  // Aplicar plantilla
   const applyTemplate = (templateKey: string) => {
     const template = TEMPLATES[templateKey as keyof typeof TEMPLATES];
     if (template) {
@@ -230,25 +225,6 @@ export default function SimulatorPage() {
     }
   };
 
-  // Exportar a JSON
-  const exportJSON = () => {
-    const data = {
-      parties,
-      constituencies,
-      coalitions,
-      method,
-      threshold,
-      timestamp: new Date().toISOString()
-    };
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `bigelecto-scenario-${Date.now()}.json`;
-    a.click();
-  };
-
-  // Totals
   const totalSeats = results.reduce((sum, r) => sum + r.totalSeats, 0);
   const aggregatedResults = results.reduce((acc, constituency) => {
     constituency.parties.forEach(p => {
@@ -262,9 +238,16 @@ export default function SimulatorPage() {
 
   const sortedResults = Object.values(aggregatedResults).sort((a, b) => b.seats - a.seats);
 
+  const tabs = [
+    { id: 'setup', label: 'Configuració', icon: Settings },
+    { id: 'results', label: 'Resultats', icon: Calculator },
+    { id: 'stepbystep', label: 'Pas a pas', icon: Eye },
+    { id: 'compare', label: 'Comparador', icon: GitCompare },
+    { id: 'export', label: 'Exportar', icon: Download },
+  ];
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 transition-colors duration-300">
-      {/* Header */}
       <header className="sticky top-0 z-50 backdrop-blur-xl bg-white/80 dark:bg-slate-950/80 border-b border-slate-200 dark:border-slate-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -289,29 +272,13 @@ export default function SimulatorPage() {
               {isRealTime ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
               <span className="hidden sm:inline">{isRealTime ? 'Temps real ON' : 'Temps real'}</span>
             </motion.button>
-            
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={exportJSON}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium shadow-lg shadow-blue-500/25"
-            >
-              <Download className="w-4 h-4" />
-              <span className="hidden sm:inline">Exportar</span>
-            </motion.button>
           </div>
         </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Tabs */}
         <div className="flex flex-wrap gap-2 mb-8 p-1 bg-slate-200/50 dark:bg-slate-800/50 rounded-xl">
-          {[
-            { id: 'setup', label: 'Configuració', icon: Settings },
-            { id: 'results', label: 'Resultats', icon: Calculator },
-            { id: 'stepbystep', label: 'Pas a pas', icon: Eye },
-            { id: 'compare', label: 'Comparador', icon: GitCompare },
-          ].map(tab => (
+          {tabs.map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
@@ -336,7 +303,6 @@ export default function SimulatorPage() {
               exit={{ opacity: 0, y: -20 }}
               className="grid grid-cols-1 lg:grid-cols-2 gap-8"
             >
-              {/* Panel de partits */}
               <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800 shadow-xl">
                 <div className="flex items-center justify-between mb-6">
                   <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
@@ -396,7 +362,6 @@ export default function SimulatorPage() {
                 </div>
               </div>
 
-              {/* Panel de circumscripcions */}
               <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800 shadow-xl">
                 <div className="flex items-center justify-between mb-6">
                   <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
@@ -482,7 +447,6 @@ export default function SimulatorPage() {
                 </div>
               </div>
 
-              {/* Configuració del mètode */}
               <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800 shadow-xl">
                 <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-6 flex items-center gap-2">
                   <span className="w-8 h-8 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center text-green-600 dark:text-green-400">
@@ -542,7 +506,6 @@ export default function SimulatorPage() {
               exit={{ opacity: 0, scale: 0.95 }}
               className="space-y-8"
             >
-              {/* Hemicicle */}
               <div className="bg-white dark:bg-slate-900 rounded-2xl p-8 border border-slate-200 dark:border-slate-800 shadow-xl">
                 <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-6 text-center">
                   Distribució Parlamentària
@@ -559,7 +522,6 @@ export default function SimulatorPage() {
                 />
               </div>
 
-              {/* Taula de resultats */}
               <div className="bg-white dark:bg-slate-900 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-xl">
                 <table className="w-full">
                   <thead className="bg-slate-50 dark:bg-slate-800">
@@ -607,6 +569,50 @@ export default function SimulatorPage() {
                     })}
                   </tbody>
                 </table>
+              </div>
+            </motion.div>
+          )}
+
+          {activeTab === 'stepbystep' && results.length > 0 && (
+            <motion.div
+              key="stepbystep"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="max-w-4xl mx-auto"
+            >
+              <div className="bg-white dark:bg-slate-900 rounded-2xl p-8 border border-slate-200 dark:border-slate-800 shadow-xl">
+                <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-6 flex items-center gap-2">
+                  <Eye className="w-6 h-6 text-blue-500" />
+                  Repartiment pas a pas
+                </h2>
+                {results.map((result, idx) => (
+                  <div key={idx} className="mb-8">
+                    {results.length > 1 && (
+                      <h3 className="text-lg font-semibold text-slate-700 dark:text-slate-300 mb-4">
+                        {result.name || `Circumscripció ${idx + 1}`} ({result.totalSeats} escons)
+                      </h3>
+                    )}
+                    <StepByStep result={result} />
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          )}
+
+          {activeTab === 'export' && results.length > 0 && (
+            <motion.div
+              key="export"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+            >
+              <div className="bg-white dark:bg-slate-900 rounded-2xl p-8 border border-slate-200 dark:border-slate-800 shadow-xl">
+                <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-6 flex items-center gap-2">
+                  <Download className="w-6 h-6 text-green-500" />
+                  Exportar resultats
+                </h2>
+                <ExportPanel results={results} method={method} threshold={threshold} />
               </div>
             </motion.div>
           )}

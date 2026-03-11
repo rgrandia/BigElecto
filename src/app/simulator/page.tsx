@@ -190,7 +190,7 @@ export default function SimulatorPage() {
         // ✅ Calcula seients totals correctament
         const seatsData = parties.map(party => {
           const count = results.reduce((sum, constituency) => {
-            const partyRes = constituency.partyResults.find(pr => pr.partyId === party.id);
+            const partyRes = constituency.parties.find(pr => pr.partyId === party.id);
             return sum + (partyRes?.seats || 0);
           }, 0);
           return {

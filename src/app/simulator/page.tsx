@@ -16,7 +16,9 @@ import {
   Eye,
   EyeOff,
   Play,
-  Pause
+  Pause,
+  Users,
+  MapPin
 } from 'lucide-react';
 import { 
   calculateElection, 

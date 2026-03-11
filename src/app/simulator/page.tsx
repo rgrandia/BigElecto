@@ -186,8 +186,21 @@ export default function SimulatorPage() {
       case 'setup':
         return <div>⚙️ Configuració de partits i circumscripcions</div>;
       case 'results':
-        return <Hemicycle results={results} />;
-      case 'whatif':
+case 'results':
+  // Transformar results a seients totals per partit
+  const seatsData = parties.map(party => {
+    const count = results.reduce((sum, constituency) => {
+      return sum + (constituency.seats[party.id] || 0);
+    }, 0);
+    return {
+      partyId: party.id,
+      partyName: party.name,
+      color: party.color,
+      count
+    };
+  });
+
+  return <Hemicycle seats={seatsData} totalSeats={seatsData.reduce((s, p) => s + p.count, 0)} />;      case 'whatif':
         return <WhatIfSimulator parties={parties} constituencies={constituencies} />;
       case 'heatmap':
         return <ConstituencyHeatmap results={results} />;

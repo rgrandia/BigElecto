@@ -185,35 +185,50 @@ export default function SimulatorPage() {
     switch(activeTab) {
       case 'setup':
         return <div>⚙️ Configuració de partits i circumscripcions</div>;
-      case 'results':
-case 'results':
-  // Transformar results a seients totals per partit
-  const seatsData = parties.map(party => {
-    const count = results.reduce((sum, constituency) => {
-      return sum + (constituency.seats[party.id] || 0);
-    }, 0);
-    return {
-      partyId: party.id,
-      partyName: party.name,
-      color: party.color,
-      count
-    };
-  });
 
-  return <Hemicycle seats={seatsData} totalSeats={seatsData.reduce((s, p) => s + p.count, 0)} />;      case 'whatif':
+      case 'results':
+        // ✅ Calcula seients totals correctament
+        const seatsData = parties.map(party => {
+          const count = results.reduce((sum, constituency) => {
+            const partyRes = constituency.partyResults.find(pr => pr.partyId === party.id);
+            return sum + (partyRes?.seats || 0);
+          }, 0);
+          return {
+            partyId: party.id,
+            partyName: party.name,
+            color: party.color,
+            count
+          };
+        });
+
+        return (
+          <Hemicycle
+            seats={seatsData}
+            totalSeats={seatsData.reduce((s, p) => s + p.count, 0)}
+          />
+        );
+
+      case 'whatif':
         return <WhatIfSimulator parties={parties} constituencies={constituencies} />;
+
       case 'heatmap':
         return <ConstituencyHeatmap results={results} />;
+
       case 'prediction':
         return <PredictionPanel results={results} />;
+
       case 'history':
         return <ElectionHistory scenarios={scenarios} />;
+
       case 'stepbystep':
         return <StepByStep results={results} />;
+
       case 'compare':
         return <div>Comparador de mètodes electorals</div>;
+
       case 'export':
         return <ExportPanel results={results} />;
+
       default:
         return null;
     }

@@ -209,25 +209,39 @@ export default function SimulatorPage() {
         );
 
       case 'whatif':
-        return <WhatIfSimulator parties={parties} constituencies={constituencies} />;
+        return (
+          <WhatIfSimulator
+            baseParties={parties}
+            baseConstituencies={constituencies}
+            method={method}
+            threshold={threshold}
+            onApplyChanges={(updatedParties, updatedConstituencies) => {
+              setParties(updatedParties);
+              setConstituencies(updatedConstituencies);
+            }}
+            onSaveScenario={(scenario) => {
+              setScenarios(prev => [...prev, scenario]);
+            }}
+          />
+        );
 
       case 'heatmap':
-        return <ConstituencyHeatmap results={results} />;
+        return <ConstituencyHeatmap results={results} constituencies={constituencies} />;
 
       case 'prediction':
-        return <PredictionPanel results={results} />;
+        return <PredictionPanel parties={parties} constituencies={constituencies} method={method} threshold={threshold} />;
 
       case 'history':
-        return <ElectionHistory scenarios={scenarios} />;
+        return <ElectionHistory currentResults={results} />;
 
       case 'stepbystep':
-        return <StepByStep results={results} />;
+        return <StepByStep result={results[0] ?? { name: '', totalSeats: 0, totalVotes: 0, parties: [], distribution: [] }} />;
 
       case 'compare':
         return <div>Comparador de mètodes electorals</div>;
 
       case 'export':
-        return <ExportPanel results={results} />;
+        return <ExportPanel results={results} method={method} threshold={threshold} />;
 
       default:
         return null;
@@ -258,9 +272,28 @@ export default function SimulatorPage() {
         {renderActiveTab()}
       </main>
 
-      {showPartyLibrary && <PartyLibrary onClose={() => setShowPartyLibrary(false)} />}
-      {showAuthModal && <AuthModal onClose={() => setShowAuthModal(false)} />}
-      {presentationMode && <PresentationMode onClose={() => setPresentationMode(false)} />}
+      {showPartyLibrary && (
+        <PartyLibrary
+          currentParties={parties}
+          onSelect={(selectedParties) => setParties(prev => [...prev, ...selectedParties.map(p => ({ ...p, votes: 0 }))])}
+          onClose={() => setShowPartyLibrary(false)}
+        />
+      )}
+      {showAuthModal && (
+        <AuthModal
+          isOpen={showAuthModal}
+          onClose={() => setShowAuthModal(false)}
+          onLogin={(user) => setCurrentUser(user)}
+        />
+      )}
+      {presentationMode && (
+        <PresentationMode
+          results={results}
+          scenarios={scenarios}
+          isActive={presentationMode}
+          onClose={() => setPresentationMode(false)}
+        />
+      )}
     </div>
   );
 }

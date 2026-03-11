@@ -13,15 +13,21 @@ interface PresentationModeProps {
   onClose: () => void;
 }
 
+type Slide =
+  | { type: 'title'; title: string }
+  | { type: 'hemicycle'; data: ConstituencyResult[] }
+  | { type: 'scenario'; name: string; results: ConstituencyResult[] }
+  | { type: 'summary'; data: ConstituencyResult[] };
+
 export default function PresentationMode({ results, scenarios, isActive, onClose }: PresentationModeProps) {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
-  const slides = [
+  const slides: Slide[] = [
     { type: 'title', title: 'Resultats Electorals' },
     { type: 'hemicycle', data: results },
-    ...scenarios.map(s => ({ type: 'scenario', ...s })),
+    ...scenarios.map(s => ({ type: 'scenario' as const, ...s })),
     { type: 'summary', data: results }
   ];
 

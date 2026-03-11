@@ -59,32 +59,59 @@ export default function Hemicycle({
     return list;
   }, [seats]);
 
-  // Calcular posicions en arc de 180 graus
+  // Calcular posicions en semicercle amb files concèntriques (més robust)
   const seatPositions: Seat[] = useMemo(() => {
-    const positions: Seat[] = [];
     const total = individualSeats.length;
-    const innerRadius = 80;
-    const maxRadius = 200;
-    
-    for (let i = 0; i < total; i++) {
-      // Distribuir uniformement en arc de 180 graus (π radians)
-      const angle = Math.PI - (i / (total - 1 || 1)) * Math.PI;
-      // Interpolar radius segons la posició per fer arc
-      const radius = innerRadius + (maxRadius - innerRadius) * Math.sin((i / total) * Math.PI);
-      
-      const x = radius * Math.cos(angle);
-      const y = -radius * Math.sin(angle);
-      
-      if (individualSeats[i]) {
+    if (total === 0) return [];
+
+    const rows = Math.max(3, Math.ceil(Math.sqrt(total) / 1.6));
+    const minRadius = 85;
+    const rowGap = 26;
+    const anglePadding = 0.12;
+
+    const weights = Array.from({ length: rows }, (_, i) => i + 1);
+    const weightTotal = weights.reduce((a, b) => a + b, 0);
+
+    const rowCounts = weights.map((w) => Math.max(1, Math.round((w / weightTotal) * total)));
+    let assigned = rowCounts.reduce((a, b) => a + b, 0);
+
+    while (assigned < total) {
+      const idx = rowCounts.indexOf(Math.max(...rowCounts));
+      rowCounts[idx] += 1;
+      assigned += 1;
+    }
+
+    while (assigned > total) {
+      const idx = rowCounts.findIndex((c) => c > 1);
+      if (idx === -1) break;
+      rowCounts[idx] -= 1;
+      assigned -= 1;
+    }
+
+    const positions: Seat[] = [];
+    let seatIndex = 0;
+
+    rowCounts.forEach((count, row) => {
+      const radius = minRadius + row * rowGap;
+      for (let i = 0; i < count; i++) {
+        if (!individualSeats[seatIndex]) break;
+
+        const angle = Math.PI - anglePadding - (i / Math.max(1, count - 1)) * (Math.PI - anglePadding * 2);
+        const x = radius * Math.cos(angle);
+        const y = -radius * Math.sin(angle);
+
         positions.push({
-          id: `seat-${i}`,
-          ...individualSeats[i],
+          id: `seat-${seatIndex}`,
+          ...individualSeats[seatIndex],
           x,
           y,
-          seatNumber: i + 1
+          seatNumber: seatIndex + 1
         });
+
+        seatIndex += 1;
       }
-    }
+    });
+
     return positions;
   }, [individualSeats]);
 
@@ -170,8 +197,9 @@ export default function Hemicycle({
     return coalitions.some(c => c.partyIds.includes(partyId));
   };
 
-  const maxRadius = 250;
-  const viewBoxSize = 600;
+  const maxRadius = 260;
+  const viewBoxSize = 620;
+  const hoveredSeatData = hoveredSeat ? seatPositions.find(s => s.id === hoveredSeat) : null;
 
   return (
     <div className={`space-y-6 ${className}`}>
@@ -356,6 +384,8 @@ export default function Hemicycle({
             ))}
           </defs>
 
+          <path d="M -170 14 Q 0 40 170 14" stroke="currentColor" strokeWidth="2" fill="none" className="text-slate-300 dark:text-slate-600" opacity={0.7} />
+
           {/* Línia de majoria */}
           <line
             x1={-maxRadius * 0.9}
@@ -408,11 +438,11 @@ export default function Hemicycle({
           </g>
 
           {/* Tooltip hover */}
-          {hoveredSeat && (
-            <g transform={`translate(${seatPositions.find(s => s.id === hoveredSeat)?.x}, ${(seatPositions.find(s => s.id === hoveredSeat)?.y || 0) - 20})`}>
-              <rect x="-50" y="-20" width="100" height="20" rx="4" className="fill-slate-900 dark:fill-white" opacity="0.9" />
-              <text x="0" y="-8" textAnchor="middle" className="text-xs fill-white dark:fill-slate-900 font-medium">
-                {seatPositions.find(s => s.id === hoveredSeat)?.partyName}
+          {hoveredSeatData && (
+            <g transform={`translate(${hoveredSeatData.x}, ${hoveredSeatData.y - 24})`}>
+              <rect x="-60" y="-24" width="120" height="24" rx="6" className="fill-slate-900 dark:fill-white" opacity="0.92" />
+              <text x="0" y="-9" textAnchor="middle" className="text-xs fill-white dark:fill-slate-900 font-semibold">
+                {hoveredSeatData.partyName}
               </text>
             </g>
           )}

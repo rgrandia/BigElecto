@@ -2,12 +2,12 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import type { LucideIcon } from 'lucide-react';
 import { 
   Calculator, 
   Save, 
   Download, 
   Share2, 
-  History,
   Settings,
   Plus,
   Trash2,
@@ -22,7 +22,8 @@ import {
   LogOut,
   User,
   Zap,
-  Maximize2
+  Maximize2,
+  TrendingUp
 } from 'lucide-react';
 import { 
   calculateElection, 
@@ -39,6 +40,8 @@ import WhatIfSimulator from '@/components/WhatIfSimulator';
 import ConstituencyHeatmap from '@/components/ConstituencyHeatmap';
 import PresentationMode from '@/components/PresentationMode';
 import ThemeToggle from '@/components/ThemeToggle';
+import PredictionPanel from '@/components/PredictionPanel';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import Link from 'next/link';
 
 // Tipus
@@ -108,6 +111,21 @@ const PRESET_COLORS = [
   '#14b8a6', '#f43f5e', '#8b5cf6', '#a855f7', '#0ea5e9'
 ];
 
+
+const TAB_CONFIG = [
+  { id: 'setup', label: 'Configuració', icon: Settings },
+  { id: 'results', label: 'Resultats', icon: Calculator },
+  { id: 'whatif', label: 'Què passaria si', icon: Zap },
+  { id: 'heatmap', label: 'Mapa de calor', icon: MapPin },
+  { id: 'prediction', label: 'Predicció', icon: TrendingUp },
+  { id: 'stepbystep', label: 'Pas a pas', icon: Eye },
+  { id: 'compare', label: 'Comparador', icon: GitCompare },
+  { id: 'export', label: 'Exportar', icon: Download },
+] as const satisfies ReadonlyArray<{ id: string; label: string; icon: LucideIcon }>;
+
+type TabId = (typeof TAB_CONFIG)[number]['id'];
+
+
 export default function SimulatorPage() {
   // Estat principal
   const [parties, setParties] = useState<Party[]>([
@@ -124,7 +142,7 @@ export default function SimulatorPage() {
   const [method, setMethod] = useState<ElectoralMethod>('dhondt');
   const [threshold, setThreshold] = useState(3);
   const [results, setResults] = useState<ConstituencyResult[]>([]);
-  const [activeTab, setActiveTab] = useState<'setup' | 'results' | 'whatif' | 'heatmap' | 'stepbystep' | 'compare' | 'export'>('setup');
+  const [activeTab, setActiveTab] = useState<TabId>('setup');
   const [showComparison, setShowComparison] = useState(false);
   const [comparisonResults, setComparisonResults] = useState<Record<ElectoralMethod, ConstituencyResult[]>>({} as any);
   const [isRealTime, setIsRealTime] = useState(false);
@@ -291,15 +309,7 @@ export default function SimulatorPage() {
 
   const sortedResults = Object.values(aggregatedResults).sort((a, b) => b.seats - a.seats);
 
-  const tabs = [
-    { id: 'setup', label: 'Configuració', icon: Settings },
-    { id: 'results', label: 'Resultats', icon: Calculator },
-    { id: 'whatif', label: 'Què passaria si', icon: Zap },
-    { id: 'heatmap', label: 'Mapa de calor', icon: MapPin },
-    { id: 'stepbystep', label: 'Pas a pas', icon: Eye },
-    { id: 'compare', label: 'Comparador', icon: GitCompare },
-    { id: 'export', label: 'Exportar', icon: Download },
-  ];
+  const tabs = TAB_CONFIG;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 transition-colors duration-300">
@@ -309,7 +319,10 @@ export default function SimulatorPage() {
             <Link href="/" className="flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors">
               <span className="text-2xl">←</span>
             </Link>
-            <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Simulador</h1>
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Simulador</h1>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Anàlisi electoral interactiva avançada</p>
+            </div>
           </div>
           
           <div className="flex items-center gap-3">
@@ -371,7 +384,7 @@ export default function SimulatorPage() {
           {tabs.map(tab => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
+              onClick={() => setActiveTab(tab.id)}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
                 activeTab === tab.id
                   ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm'
@@ -683,6 +696,7 @@ export default function SimulatorPage() {
                 baseConstituencies={constituencies}
                 method={method}
                 threshold={threshold}
+                onSaveScenario={({ name, results }) => addScenario(name, results)}
                 onApplyChanges={(newParties, newConstituencies) => {
                   setParties(newParties);
                   setConstituencies(newConstituencies);
@@ -707,6 +721,27 @@ export default function SimulatorPage() {
               </div>
             </motion.div>
           )}
+
+
+          {activeTab === 'prediction' && (
+            <motion.div
+              key="prediction"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              <div className="bg-gradient-to-br from-white to-indigo-50 dark:from-slate-900 dark:to-slate-900 rounded-2xl p-8 border border-indigo-100 dark:border-slate-800 shadow-xl">
+                <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Predicció de resultats</h2>
+                <p className="text-sm text-slate-600 dark:text-slate-300 mb-6">Ajusta enquestes i incertesa per visualitzar escenaris probables.</p>
+                <PredictionPanel
+                  parties={parties}
+                  constituencies={constituencies}
+                  method={method}
+                  threshold={threshold}
+                />
+              </div>
+            </motion.div>
+          )}
+
 
           {activeTab === 'stepbystep' && results.length > 0 && (
             <motion.div
@@ -778,6 +813,31 @@ export default function SimulatorPage() {
                 </button>
 
                 {showComparison && Object.keys(comparisonResults).length > 0 && (
+                  <>
+                    <div className="mt-8"> 
+                      <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-3">Comparador d'escenaris (base / optimista / pessimista)</h3>
+                      <div className="h-72">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart
+                            data={sortedResults.map((p) => ({
+                              party: p.partyName,
+                              Base: p.seats,
+                              Optimista: Math.max(0, Math.round(p.seats * 1.1)),
+                              Pessimista: Math.max(0, Math.round(p.seats * 0.9))
+                            }))}
+                          >
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="party" />
+                            <YAxis />
+                            <Tooltip />
+                            <Bar dataKey="Base" fill="#2563eb" />
+                            <Bar dataKey="Optimista" fill="#16a34a" />
+                            <Bar dataKey="Pessimista" fill="#dc2626" />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+
                   <div className="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     {METHODS.map(m => {
                       const methodResults = comparisonResults[m.value];
@@ -812,6 +872,7 @@ export default function SimulatorPage() {
                       );
                     })}
                   </div>
+                  </>
                 )}
               </div>
             </motion.div>

@@ -184,7 +184,7 @@ export default function SimulatorPage() {
   const renderActiveTab = () => {
     switch(activeTab) {
       case 'setup':
-        return <div>⚙️ Configuració de partits i circumscripcions</div>;
+        return <div className="p-6 text-gray-700 dark:text-gray-200">⚙️ Configuració de partits i circumscripcions</div>;
 
       case 'results':
         // ✅ Calcula seients totals correctament
@@ -238,7 +238,7 @@ export default function SimulatorPage() {
         return <StepByStep result={results[0] ?? { name: '', totalSeats: 0, totalVotes: 0, parties: [], distribution: [] }} />;
 
       case 'compare':
-        return <div>Comparador de mètodes electorals</div>;
+        return <div className="p-6 text-gray-700 dark:text-gray-200">Comparador de mètodes electorals</div>;
 
       case 'export':
         return <ExportPanel results={results} method={method} threshold={threshold} />;
@@ -249,29 +249,76 @@ export default function SimulatorPage() {
   };
 
   return (
-    <div className="simulator-page">
-      <header className="tabs">
-        {TAB_CONFIG.map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={activeTab === tab.id ? 'active' : ''}
-          >
-            <tab.icon size={16} /> {tab.label}
-          </button>
-        ))}
-        <ThemeToggle />
-        {currentUser ? (
-          <button onClick={logout}><LogOut size={16} /> Logout</button>
-        ) : (
-          <button onClick={() => setShowAuthModal(true)}><User size={16} /> Login</button>
-        )}
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      {/* Header amb tabs */}
+      <header className="sticky top-0 z-50 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            {/* Logo o títol */}
+            <div className="flex-shrink-0">
+              <h1 className="text-xl font-bold text-gray-900 dark:text-white">
+                BigElecto
+              </h1>
+            </div>
+
+            {/* Tabs de navegació */}
+            <nav className="flex space-x-1 overflow-x-auto">
+              {TAB_CONFIG.map(tab => {
+                const Icon = tab.icon;
+                const isActive = activeTab === tab.id;
+                
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`
+                      inline-flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 whitespace-nowrap
+                      ${isActive 
+                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200' 
+                        : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white'
+                      }
+                    `}
+                  >
+                    <Icon className="w-4 h-4 mr-2" />
+                    {tab.label}
+                  </button>
+                );
+              })}
+            </nav>
+
+            {/* Botons d'acció (Theme, Login) */}
+            <div className="flex items-center space-x-3">
+              <ThemeToggle />
+              {currentUser ? (
+                <button 
+                  onClick={logout}
+                  className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-gray-700 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 transition-colors"
+                >
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Logout
+                </button>
+              ) : (
+                <button 
+                  onClick={() => setShowAuthModal(true)}
+                  className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 transition-colors"
+                >
+                  <User className="w-4 h-4 mr-2" />
+                  Login
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
       </header>
 
-      <main className="tab-content">
-        {renderActiveTab()}
+      {/* Contingut principal */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 min-h-[600px]">
+          {renderActiveTab()}
+        </div>
       </main>
 
+      {/* Modals */}
       {showPartyLibrary && (
         <PartyLibrary
           currentParties={parties}
@@ -279,6 +326,7 @@ export default function SimulatorPage() {
           onClose={() => setShowPartyLibrary(false)}
         />
       )}
+      
       {showAuthModal && (
         <AuthModal
           isOpen={showAuthModal}
@@ -286,6 +334,7 @@ export default function SimulatorPage() {
           onLogin={(user) => setCurrentUser(user)}
         />
       )}
+      
       {presentationMode && (
         <PresentationMode
           results={results}

@@ -162,7 +162,7 @@ export default function SimulatorPage() {
   const [selectedTemplate, setSelectedTemplate] = useState<string>('');
 
   const [showPartyLibrary, setShowPartyLibrary] = useState(false);
-  const [selectedLibraryParties, setSelectedLibraryParties] = useState<Array<{ id: string; name: string; shortName: string; color: string; votes: number }>>([]);
+  const [selectedLibraryParties, setSelectedLibraryParties] = useState<Party[]>([]);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [scenarios, setScenarios] = useState<{ name: string; results: ConstituencyResult[] }[]>([]);

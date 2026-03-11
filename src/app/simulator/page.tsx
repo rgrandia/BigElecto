@@ -24,7 +24,9 @@ import {
   Zap,
   Maximize2,
   TrendingUp,
-  History
+  History,
+  Check,
+  X
 } from 'lucide-react';
 
 import { 
@@ -155,11 +157,12 @@ export default function SimulatorPage() {
   const [results, setResults] = useState<ConstituencyResult[]>([]);
   const [activeTab, setActiveTab] = useState<TabId>('setup');
   const [showComparison, setShowComparison] = useState(false);
-  const [comparisonResults, setComparisonResults] = useState<Record<ElectoralMethod, { results: ConstituencyResult[]; totalSeats: number; partyTotals: Record<string, number> }>>({} as any);
+  const [comparisonResults, setComparisonResults] = useState<Record<ElectoralMethod, ConstituencyResult[]>>({} as any);
   const [isRealTime, setIsRealTime] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<string>('');
 
   const [showPartyLibrary, setShowPartyLibrary] = useState(false);
+  const [selectedLibraryParties, setSelectedLibraryParties] = useState<Party[]>([]);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [scenarios, setScenarios] = useState<{ name: string; results: ConstituencyResult[] }[]>([]);
@@ -270,6 +273,38 @@ export default function SimulatorPage() {
         votes
       }
     ]);
+  };
+
+  // Funció per importar partits de la biblioteca
+  const importSelectedParties = () => {
+    if (selectedLibraryParties.length === 0) return;
+    
+    // Afegir els partits seleccionats
+    const newParties = [...parties];
+    const newConstituencies = [...constituencies];
+    
+    selectedLibraryParties.forEach(libraryParty => {
+      // Comprovar si ja existeix
+      if (!parties.find(p => p.name === libraryParty.name)) {
+        const newId = (Math.max(...newParties.map(p => parseInt(p.id)), 0) + 1).toString();
+        const newParty: Party = {
+          ...libraryParty,
+          id: newId,
+          votes: 0
+        };
+        newParties.push(newParty);
+        
+        // Afegir vots a 0 a totes les circumscripcions
+        newConstituencies.forEach(c => {
+          c.votes[newId] = 0;
+        });
+      }
+    });
+    
+    setParties(newParties);
+    setConstituencies(newConstituencies);
+    setSelectedLibraryParties([]);
+    setShowPartyLibrary(false);
   };
 
   // --- Render Tabs ---
@@ -387,13 +422,22 @@ export default function SimulatorPage() {
                   <Users className="w-5 h-5 mr-2 text-blue-600" />
                   Partits ({parties.length})
                 </h2>
-                <button
-                  onClick={addParty}
-                  className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors"
-                >
-                  <Plus className="w-4 h-4 mr-1" />
-                  Afegir
-                </button>
+                <div className="flex space-x-2">
+                  <button
+                    onClick={() => setShowPartyLibrary(true)}
+                    className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-purple-700 bg-purple-100 rounded-md hover:bg-purple-200 transition-colors"
+                  >
+                    <Users className="w-4 h-4 mr-1" />
+                    Biblioteca
+                  </button>
+                  <button
+                    onClick={addParty}
+                    className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors"
+                  >
+                    <Plus className="w-4 h-4 mr-1" />
+                    Afegir
+                  </button>
+                </div>
               </div>
               
               <div className="divide-y divide-gray-200 dark:divide-gray-700">
@@ -564,14 +608,6 @@ export default function SimulatorPage() {
               >
                 {isRealTime ? <Pause className="w-5 h-5 mr-2" /> : <Play className="w-5 h-5 mr-2" />}
                 Càlcul en temps real {isRealTime ? 'ON' : 'OFF'}
-              </button>
-
-              <button
-                onClick={() => setShowPartyLibrary(true)}
-                className="inline-flex items-center px-4 py-3 text-base font-medium text-purple-700 bg-purple-100 rounded-lg hover:bg-purple-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-colors"
-              >
-                <Users className="w-5 h-5 mr-2" />
-                Biblioteca de Partits
               </button>
 
               <div className="flex-1"></div>
@@ -755,7 +791,197 @@ export default function SimulatorPage() {
         );
 
       case 'heatmap':
-        return <ConstituencyHeatmap results={results} constituencies={constituencies} />;
+        // NOU MAPA DE CALOR AMB ÚLTIM ESCÓ I SEGON
+        return (
+          <div className="p-6">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Mapa de Calor Electoral</h2>
+            <p className="text-gray-600 dark:text-gray-400 mb-6">
+              Visualització de l'últim escó assignat a cada circumscripció i la diferència amb el segon classificat.
+            </p>
+
+            {results.length > 0 ? (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {results.map((constituency, idx) => {
+                  // Trobar l'últim escó (l'últim a la distribució)
+                  const lastSeat = constituency.distribution[constituency.distribution.length - 1];
+                  const lastSeatParty = constituency.parties.find(p => p.partyId === lastSeat?.partyId);
+                  
+                  // Trobar el segon classificat per l'últim escó
+                  const sortedParties = [...constituency.parties].sort((a, b) => {
+                    // Ordenar per quocient de l'últim escó assignat
+                    const aQuotient = a.quotients?.[a.quotients.length - 1] || 0;
+                    const bQuotient = b.quotients?.[b.quotients.length - 1] || 0;
+                    return bQuotient - aQuotient;
+                  });
+                  
+                  const winner = sortedParties[0];
+                  const second = sortedParties[1];
+                  
+                  // Calcular diferència de vots necessaris per canviar l'escó
+                  const winnerQuotient = winner?.quotients?.[winner.quotients.length - 1] || 0;
+                  const secondQuotient = second?.quotients?.[second.quotients.length - 1] || 0;
+                  const voteDiff = secondQuotient > 0 ? Math.ceil((winnerQuotient - secondQuotient) * (winner?.seats || 1)) : 0;
+                  const percentageDiff = winnerQuotient > 0 ? ((winnerQuotient - secondQuotient) / winnerQuotient * 100) : 0;
+
+                  return (
+                    <div key={idx} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+                      {/* Header amb nom i escons */}
+                      <div className="px-6 py-4 bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{constituency.name}</h3>
+                        <span className="px-3 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded-full text-sm font-medium">
+                          {constituency.totalSeats} escons
+                        </span>
+                      </div>
+
+                      <div className="p-6 space-y-6">
+                        {/* Guanyador de l'últim escó */}
+                        {winner && (
+                          <div className="relative">
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Últim escó assignat a</span>
+                              <span className="text-xs text-gray-500 dark:text-gray-500">Escó #{constituency.totalSeats}</span>
+                            </div>
+                            
+                            <div className="flex items-center space-x-4 p-4 rounded-lg" style={{ 
+                              background: `linear-gradient(135deg, ${winner.color}20 0%, ${winner.color}05 100%)`,
+                              borderLeft: `4px solid ${winner.color}`
+                            }}>
+                              <div 
+                                className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-lg"
+                                style={{ backgroundColor: winner.color }}
+                              >
+                                {winner.partyName.charAt(0)}
+                              </div>
+                              <div className="flex-1">
+                                <div className="text-lg font-bold text-gray-900 dark:text-white">{winner.partyName}</div>
+                                <div className="text-sm text-gray-600 dark:text-gray-400">
+                                  {winner.seats} escons totals • Quocient: {winner.quotients?.[winner.quotients.length - 1]?.toFixed(0)}
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <div className="text-2xl font-bold" style={{ color: winner.color }}>{winner.seats}</div>
+                                <div className="text-xs text-gray-500 dark:text-gray-400">escons</div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Segon classificat i diferència */}
+                        {second && (
+                          <div>
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Segon classificat</span>
+                              <span className="text-xs text-red-500 font-medium">A {voteDiff.toLocaleString()} vots</span>
+                            </div>
+
+                            <div className="relative">
+                              {/* Barra de progrés amb degradat */}
+                              <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden relative">
+                                {/* Part guanyadora */}
+                                <div 
+                                  className="h-full absolute left-0 top-0 transition-all duration-500"
+                                  style={{ 
+                                    width: `${100 - percentageDiff}%`,
+                                    background: `linear-gradient(90deg, ${winner.color} 0%, ${winner.color}dd 100%)`
+                                  }}
+                                />
+                                {/* Part segon */}
+                                <div 
+                                  className="h-full absolute right-0 top-0 transition-all duration-500"
+                                  style={{ 
+                                    width: `${percentageDiff}%`,
+                                    background: `linear-gradient(90deg, ${second.color}aa 0%, ${second.color} 100%)`
+                                  }}
+                                />
+                                
+                                {/* Marcador de la diferència */}
+                                <div 
+                                  className="absolute top-0 bottom-0 w-0.5 bg-white dark:bg-gray-900 z-10"
+                                  style={{ left: `${100 - percentageDiff}%` }}
+                                />
+                              </div>
+
+                              {/* Labels sota la barra */}
+                              <div className="flex justify-between mt-2 text-xs">
+                                <div className="flex items-center">
+                                  <div className="w-2 h-2 rounded-full mr-1" style={{ backgroundColor: winner.color }} />
+                                  <span className="text-gray-700 dark:text-gray-300 font-medium">{winner.partyName}</span>
+                                </div>
+                                <div className="text-center">
+                                  <span className="text-red-500 font-bold">{percentageDiff.toFixed(1)}%</span>
+                                  <span className="text-gray-500 dark:text-gray-400 ml-1">de diferència</span>
+                                </div>
+                                <div className="flex items-center">
+                                  <span className="text-gray-700 dark:text-gray-300 font-medium">{second.partyName}</span>
+                                  <div className="w-2 h-2 rounded-full ml-1" style={{ backgroundColor: second.color }} />
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Info del segon */}
+                            <div className="mt-3 flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/30 rounded-lg">
+                              <div className="flex items-center space-x-3">
+                                <div 
+                                  className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold"
+                                  style={{ backgroundColor: second.color }}
+                                >
+                                  {second.partyName.charAt(0)}
+                                </div>
+                                <div>
+                                  <div className="text-sm font-medium text-gray-900 dark:text-white">{second.partyName}</div>
+                                  <div className="text-xs text-gray-500 dark:text-gray-400">{second.seats} escons • Quocient: {second.quotients?.[second.quotients.length - 1]?.toFixed(0)}</div>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <div className="text-sm font-bold text-red-500">-{voteDiff.toLocaleString()}</div>
+                                <div className="text-xs text-gray-500 dark:text-gray-400">vots necessaris</div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Resum de tots els partits */}
+                        <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                          <div className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-3">Distribució completa</div>
+                          <div className="space-y-2">
+                            {constituency.parties
+                              .sort((a, b) => b.seats - a.seats)
+                              .map((party, pIdx) => (
+                                <div key={party.partyId} className="flex items-center justify-between">
+                                  <div className="flex items-center space-x-2">
+                                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: party.color }} />
+                                    <span className="text-sm text-gray-700 dark:text-gray-300">{party.partyName}</span>
+                                  </div>
+                                  <div className="flex items-center space-x-3">
+                                    <div className="w-24 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                                      <div 
+                                        className="h-full rounded-full"
+                                        style={{ 
+                                          width: `${(party.seats / constituency.totalSeats) * 100}%`,
+                                          backgroundColor: party.color
+                                        }}
+                                      />
+                                    </div>
+                                    <span className="text-sm font-bold text-gray-900 dark:text-white w-8 text-right">{party.seats}</span>
+                                  </div>
+                                </div>
+                              ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-20 text-gray-500 dark:text-gray-400">
+                <MapPin className="w-16 h-16 mb-4 opacity-50" />
+                <p className="text-lg text-gray-900 dark:text-white">Encara no hi ha resultats per mostrar</p>
+                <p className="text-sm">Ves a "Configuració", introdueix els vots i prem "Calcular Resultats"</p>
+              </div>
+            )}
+          </div>
+        );
 
       case 'prediction':
         return <PredictionPanel parties={parties} constituencies={constituencies} method={method} threshold={threshold} />;
@@ -775,11 +1001,11 @@ export default function SimulatorPage() {
               <button
                 onClick={() => {
                   const methods: ElectoralMethod[] = ['dhondt', 'saintelague', 'hare', 'droop', 'imperiali'];
-                  const comparisons: Record<ElectoralMethod, { results: ConstituencyResult[]; totalSeats: number; partyTotals: Record<string, number> }> = {} as any;
+                  const comparisons: Record<ElectoralMethod, ConstituencyResult[]> = {} as any;
                   
                   methods.forEach(m => {
                     // Calcular per totes les circumscripcions amb cada mètode
-                    const methodResults = constituencies.map(constituency => {
+                    comparisons[m] = constituencies.map(constituency => {
                       const partiesForCalc = parties.map(party => ({
                         partyId: party.id,
                         partyName: party.name,
@@ -809,20 +1035,6 @@ export default function SimulatorPage() {
                         name: constituency.name
                       };
                     });
-
-                    // Calcular totals per partit
-                    const partyTotals: Record<string, number> = {};
-                    methodResults.forEach(constituency => {
-                      constituency.parties.forEach(party => {
-                        partyTotals[party.partyId] = (partyTotals[party.partyId] || 0) + party.seats;
-                      });
-                    });
-
-                    comparisons[m] = {
-                      results: methodResults,
-                      totalSeats: methodResults.reduce((sum, c) => sum + c.totalSeats, 0),
-                      partyTotals
-                    };
                   });
                   
                   setComparisonResults(comparisons);
@@ -843,28 +1055,38 @@ export default function SimulatorPage() {
                 </button>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {Object.entries(comparisonResults).map(([methodKey, data]) => {
+                  {Object.entries(comparisonResults).map(([methodKey, methodResults]) => {
                     const methodLabel = METHODS.find(m => m.value === methodKey)?.label || methodKey;
                     const methodDesc = METHODS.find(m => m.value === methodKey)?.description || '';
+                    
+                    // Calcular totals per partit
+                    const partyTotals: Record<string, number> = {};
+                    let totalSeats = 0;
+                    methodResults.forEach(constituency => {
+                      totalSeats += constituency.totalSeats;
+                      constituency.parties.forEach(party => {
+                        partyTotals[party.partyId] = (partyTotals[party.partyId] || 0) + party.seats;
+                      });
+                    });
                     
                     return (
                       <div key={methodKey} className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 shadow-sm">
                         <div className="flex items-center justify-between mb-4">
                           <h3 className="text-xl font-bold text-gray-900 dark:text-white">{methodLabel}</h3>
                           <span className="px-3 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded-full text-sm font-medium">
-                            {data.totalSeats} escons
+                            {totalSeats} escons
                           </span>
                         </div>
                         <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">{methodDesc}</p>
                         
                         {/* Distribució per partit */}
                         <div className="space-y-2">
-                          {Object.entries(data.partyTotals)
+                          {Object.entries(partyTotals)
                             .sort(([,a], [,b]) => b - a)
                             .map(([partyId, seats]) => {
                               const party = parties.find(p => p.id === partyId);
                               if (!party || seats === 0) return null;
-                              const percentage = data.totalSeats > 0 ? ((seats / data.totalSeats) * 100).toFixed(1) : '0.0';
+                              const percentage = totalSeats > 0 ? ((seats / totalSeats) * 100).toFixed(1) : '0.0';
                               
                               return (
                                 <div key={partyId} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700/50 rounded">
@@ -975,13 +1197,57 @@ export default function SimulatorPage() {
         </div>
       </main>
 
-      {/* Modals */}
+      {/* Modal de Biblioteca de Partits MILLORAT */}
       {showPartyLibrary && (
-        <PartyLibrary
-          currentParties={parties}
-          onSelect={(selectedParties) => setParties(prev => [...prev, ...selectedParties.map(p => ({ ...p, votes: 0 }))])}
-          onClose={() => setShowPartyLibrary(false)}
-        />
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Biblioteca de Partits</h2>
+              <button 
+                onClick={() => {
+                  setShowPartyLibrary(false);
+                  setSelectedLibraryParties([]);
+                }}
+                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-6">
+              <PartyLibrary
+                currentParties={parties}
+                onSelect={(selectedParties) => setSelectedLibraryParties(selectedParties)}
+                onClose={() => {}}
+              />
+            </div>
+            
+            <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50 flex justify-between items-center">
+              <span className="text-sm text-gray-600 dark:text-gray-400">
+                {selectedLibraryParties.length} partit{selectedLibraryParties.length !== 1 ? 's' : ''} seleccionat{selectedLibraryParties.length !== 1 ? 's' : ''}
+              </span>
+              <div className="flex space-x-3">
+                <button
+                  onClick={() => {
+                    setShowPartyLibrary(false);
+                    setSelectedLibraryParties([]);
+                  }}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-600"
+                >
+                  Cancel·lar
+                </button>
+                <button
+                  onClick={importSelectedParties}
+                  disabled={selectedLibraryParties.length === 0}
+                  className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  <Check className="w-4 h-4 mr-2" />
+                  Importar seleccionats
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
       
       {showAuthModal && (

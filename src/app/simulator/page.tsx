@@ -155,7 +155,7 @@ export default function SimulatorPage() {
   const [results, setResults] = useState<ConstituencyResult[]>([]);
   const [activeTab, setActiveTab] = useState<TabId>('setup');
   const [showComparison, setShowComparison] = useState(false);
-  const [comparisonResults, setComparisonResults] = useState<Record<ElectoralMethod, ConstituencyResult[]>>({} as any);
+  const [comparisonResults, setComparisonResults] = useState<Record<ElectoralMethod, { results: ConstituencyResult[]; totalSeats: number; partyTotals: Record<string, number> }>>({} as any);
   const [isRealTime, setIsRealTime] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<string>('');
 

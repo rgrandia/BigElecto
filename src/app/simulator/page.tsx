@@ -162,7 +162,7 @@ export default function SimulatorPage() {
   const [selectedTemplate, setSelectedTemplate] = useState<string>('');
 
   const [showPartyLibrary, setShowPartyLibrary] = useState(false);
-  const [selectedLibraryParties, setSelectedLibraryParties] = useState<Party[]>([]);
+  const [selectedLibraryParties, setSelectedLibraryParties] = useState<Array<{ id: string; name: string; shortName: string; color: string; votes: number }>>([]);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [scenarios, setScenarios] = useState<{ name: string; results: ConstituencyResult[] }[]>([]);
@@ -288,8 +288,10 @@ export default function SimulatorPage() {
       if (!parties.find(p => p.name === libraryParty.name)) {
         const newId = (Math.max(...newParties.map(p => parseInt(p.id)), 0) + 1).toString();
         const newParty: Party = {
-          ...libraryParty,
           id: newId,
+          name: libraryParty.name,
+          shortName: libraryParty.shortName,
+          color: libraryParty.color,
           votes: 0
         };
         newParties.push(newParty);
@@ -811,7 +813,7 @@ export default function SimulatorPage() {
                     // Ordenar per quocient de l'últim escó assignat
                     const aQuotient = a.quotients?.[a.quotients.length - 1] || 0;
                     const bQuotient = b.quotients?.[b.quotients.length - 1] || 0;
-                    return bQuotient - aQuotient;
+                    return bQuotient - a.Quotient;
                   });
                   
                   const winner = sortedParties[0];
@@ -1217,7 +1219,7 @@ export default function SimulatorPage() {
             <div className="flex-1 overflow-y-auto p-6">
               <PartyLibrary
                 currentParties={parties}
-                onSelect={(selectedParties) => setSelectedLibraryParties(selectedParties)}
+                onSelect={(selectedParties: Array<{ id: string; name: string; shortName: string; color: string; votes: number }>) => setSelectedLibraryParties(selectedParties)}
                 onClose={() => {}}
               />
             </div>

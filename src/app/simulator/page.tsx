@@ -813,7 +813,7 @@ export default function SimulatorPage() {
                     // Ordenar per quocient de l'últim escó assignat
                     const aQuotient = a.quotients?.[a.quotients.length - 1] || 0;
                     const bQuotient = b.quotients?.[b.quotients.length - 1] || 0;
-                    return bQuotient - a.Quotient;
+                    return bQuotient - aQuotient;
                   });
                   
                   const winner = sortedParties[0];

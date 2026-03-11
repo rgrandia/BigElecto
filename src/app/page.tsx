@@ -1,5 +1,1 @@
-import Simulator from '@/components/Simulator';
-
-export default function Home() {
-  return <Simulator />;
-}
+import { Simulator } from '../components';
